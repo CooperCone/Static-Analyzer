@@ -9,7 +9,7 @@ void rule_1_2_a(Rule rule, RuleContext context) {
         if (tok.type == Token_NewLine &&
             tok.col > 81)
         {
-            reportRuleViolation(rule.name, context.fileName, tok.line);
+            reportRuleViolation(rule, context.fileName, tok.line);
         }
     }
 }

@@ -13,7 +13,8 @@ typedef void (*RuleValidator)(Rule rule, RuleContext context);
 
 struct Rule {
     char *name;
+    char *description;
     RuleValidator validator;
 };
 
-void reportRuleViolation(char *ruleName, char *fileName, uint64_t line);
+void reportRuleViolation(Rule rule, char *fileName, uint64_t line);
