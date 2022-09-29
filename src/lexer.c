@@ -90,8 +90,29 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
         tok.col = col;
         // TODO: Should we update line and col in a better way?
 
+        // Comments
+        if (peekMulti(buff, "//")) {
+            uint64_t commentLength = 0;
+
+            while (peekAhead(buff, commentLength) != '\r' &&
+                   peekAhead(buff, commentLength) != '\n')
+            {
+                commentLength++;
+            }
+
+            char *commentStr = malloc(commentLength + 1);
+            memcpy(commentStr, buff->bytes, commentLength);
+            commentStr[commentLength] = '\0';
+
+            tok.type = Token_Comment;
+            tok.comment = commentStr;
+
+            buff->pos += commentLength;
+            col += commentLength;
+        }
+
         // Whitespace
-        if (peek(buff) == '\r' || peek(buff) == '\n') {
+        else if (peek(buff) == '\r' || peek(buff) == '\n') {
             tok.type = Token_NewLine;
 
             if (peek(buff) == '\r')
@@ -242,6 +263,9 @@ void printTokens(TokenList tokens) {
 
         else if (tok.type == Token_Ident) {
             printDebug("Ident: %s\n", tok.ident);
+        }
+        else if (tok.type == Token_Comment) {
+            printDebug("%s\n", tok.comment);
         }
         else if (tok.type == Token_ConstString) {
             printDebug("String: %s\n", tok.constString);

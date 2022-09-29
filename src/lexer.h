@@ -30,6 +30,7 @@ typedef struct {
     union {
         char *ident;
         char *whitespace;
+        char *comment;
         char *constString;
         struct {
             char *numericWhole;
