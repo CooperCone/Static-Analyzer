@@ -24,6 +24,7 @@ void reportRuleViolation(char *ruleName, char *description,
 Rule g_rules[] = {
     { "1.2.a", rule_1_2_a },
     { "1.3.b", rule_1_3_b },
+    { "1.5.a", rule_1_5_a },
 };
 
 size_t g_rulesCount = sizeof(g_rules) / sizeof(Rule);

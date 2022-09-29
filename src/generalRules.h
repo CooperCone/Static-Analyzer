@@ -6,4 +6,8 @@
 void rule_1_2_a(Rule rule, RuleContext context);
 
 // Verifies braces on own line and closing brace in same column
-void rule_1_3_b(Rule rule, RuleContext);
+void rule_1_3_b(Rule rule, RuleContext context);
+
+// Verifies no single letter variable names
+// NOTE: Doesn't catch all abbreviations!!!
+void rule_1_5_a(Rule rule, RuleContext context);

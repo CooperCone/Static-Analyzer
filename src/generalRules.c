@@ -1,5 +1,7 @@
 #include "generalRules.h"
 
+#include <string.h>
+
 // Verifies that lines not longer than 80 characters
 void rule_1_2_a(Rule rule, RuleContext context) {
     for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
@@ -85,5 +87,31 @@ void rule_1_3_b(Rule rule, RuleContext context) {
                     context.fileName, tok.line);
             }
         }
+    }
+}
+
+// Verifies no single letter variable names
+// NOTE: Doesn't catch all abbreviations!!!
+// TODO: Should we look for common abbreviations like idx?
+void rule_1_5_a(Rule rule, RuleContext context) {
+    for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
+        Token tok = context.tokens.tokens[i];
+
+        if (tok.type != Token_Ident)
+            continue;
+
+        if (strlen(tok.ident) > 1)
+            continue;
+
+        // TODO: Pull these from a config file
+        if (strcmp(tok.ident, "i") == 0)
+            continue;
+
+        if (strcmp(tok.ident, "c") == 0)
+            continue;
+
+        reportRuleViolation(rule.name,
+            "Variable names should be descriptive, thus not a single letter",
+            context.fileName, tok.line);
     }
 }

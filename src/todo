@@ -1,7 +1,12 @@
+Config
+- Rules to ignore
+- Params for certain rules
+- Have multiple config files and specify different ones
+
+Better description names with specific info about the 
+
 Rules To Implement
-1.2.a - Lexer
 1.3.a - Parser and Lexer
-1.3.b - Lexer
 1.4.a - Parser and Lexer
 1.4.b - Parser
 1.5.a - Lexer
