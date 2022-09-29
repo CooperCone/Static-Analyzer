@@ -3,6 +3,11 @@
 
 #include "buffer.h"
 #include "lexer.h"
+#include "rule.h"
+#include "debug.h"
+
+extern Rule g_rules[];
+extern size_t g_rulesCount;
 
 int main(int argc, char **argv) {
 
@@ -16,7 +21,7 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        printf("%s\n", fileBuff.bytes);
+        printDebug("%s\n", fileBuff.bytes);
 
         // Lex file
         TokenList tokens = {0};
@@ -26,8 +31,19 @@ int main(int argc, char **argv) {
         }
 
         printTokens(tokens);
-        printf("\n");
+        printDebug("\n");
 
         // Parse tokens
+
+
+        // Run all rules
+        RuleContext context = {
+            .fileName = argv[i],
+            .tokens = tokens
+        };
+
+        for (uint64_t i = 0; i < g_rulesCount; i++) {
+            g_rules[i].validator(g_rules[i], context);
+        }
     }
 }

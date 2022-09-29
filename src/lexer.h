@@ -12,6 +12,7 @@ typedef enum {
 
     Token_Ident = 260,
     Token_Whitespace,
+    Token_NewLine,
     Token_Comment,
 
     Token_int,
@@ -23,6 +24,9 @@ typedef enum {
 
 typedef struct {
     TokenType type;
+    uint64_t line;
+    uint64_t col;
+
     union {
         char *ident;
         char *whitespace;

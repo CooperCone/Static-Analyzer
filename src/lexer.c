@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <ctype.h>
 
+#include "debug.h"
+
 void appendTok(TokenList *tokens, Token tok) {
     tokens->numTokens++;
     tokens->tokens = realloc(tokens->tokens, tokens->numTokens * sizeof(Token));
@@ -61,11 +63,13 @@ bool consumeMultiIf(Buffer *buffer, char *str) {
 }
 
 #define SingleCharacterOp(op) else if (consumeIf(buff, op )) {\
-    appendTok(outTokens, (Token){ op });\
+    tok.type = op;\
+    col++;\
 }
 
-#define Keyword(name, type) else if (consumeMultiIf(buff, name)) {\
-    appendTok(outTokens, (Token){ type });\
+#define Keyword(name, tokType) else if (consumeMultiIf(buff, name)) {\
+    tok.type = tokType;\
+    col += strlen(name);\
 }
 
 bool lexFile(Buffer buffer, TokenList *outTokens) {
@@ -76,13 +80,34 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
 
     Buffer *buff = &buffer;
 
+    uint64_t line = 1;
+    uint64_t col = 1;
+
     while (buffer.pos < buffer.size) {
 
+        Token tok = {0};
+        tok.line = line;
+        tok.col = col;
+        // TODO: Should we update line and col in a better way?
+
         // Whitespace
-        if (isspace(peek(buff))) {
+        if (peek(buff) == '\r' || peek(buff) == '\n') {
+            tok.type = Token_NewLine;
+
+            if (peek(buff) == '\r')
+                buffer.pos++;
+            buffer.pos++;
+
+            line++;
+            col = 1;
+        }
+        else if (isspace(peek(buff))) {
             size_t whitespaceLen = 1;
 
-            while (isspace(peekAhead(buff, whitespaceLen))) {
+            while (isspace(peekAhead(buff, whitespaceLen)) &&
+                (peekAhead(buff, whitespaceLen) != '\n') &&
+                (peekAhead(buff, whitespaceLen) != '\r'))
+            {
                 whitespaceLen++;
             }
 
@@ -90,16 +115,12 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
             memcpy(whitespace, buff->bytes + buff->pos, whitespaceLen);
             whitespace[whitespaceLen] = '\0';
 
-            Token whitespaceTok = {
-                .type = Token_Whitespace,
-                .whitespace = whitespace
-            };
-
             buff->pos += whitespaceLen;
+            col += whitespaceLen;
 
-            appendTok(outTokens, whitespaceTok);
+            tok.type = Token_Whitespace;
+            tok.whitespace = whitespace;
         }
-
 
         // Keywords
         Keyword("include", Token_include)
@@ -122,16 +143,12 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
             memcpy(ident, buff->bytes + buff->pos, identLength);
             ident[identLength] = '\0';
 
-            Token identTok = {
-                .type = Token_Ident,
-                .ident = ident
-            };
-
-            appendTok(outTokens, identTok);
-
             buffer.pos += identLength;
-        }
+            col += identLength;
 
+            tok.type = Token_Ident;
+            tok.ident = ident;
+        }
 
         // Operators
         SingleCharacterOp('#')
@@ -160,13 +177,10 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
 
             // + 1 so we can get the last "
             buffer.pos += stringLength + 1;
+            col += stringLength + 2; // 2 so we also get the first one
 
-            Token strTok = {
-                .type = Token_ConstString,
-                .constString = str
-            };
-
-            appendTok(outTokens, strTok);
+            tok.type = Token_ConstString;
+            tok.constString = str;
         }
         // TODO: Prefix
         // TODO: Suffix
@@ -182,41 +196,44 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
             wholeStr[wholeLen] = '\0';
 
             buffer.pos += wholeLen;
+            col += wholeLen;
 
             if (peek(buff) == '.') {
                 assert(false);
                 // TODO: Handle Floats
             }
 
-            Token tok = {
-                .type = Token_ConstNumeric,
-                .numericWhole = wholeStr
-            };
-
-            appendTok(outTokens, tok);
+            tok.type = Token_ConstNumeric;
+            tok.numericWhole = wholeStr;
         }
 
         else {
             // TODO: Error Handling
             buffer.pos++;
+            col++;
         }
+
+        appendTok(outTokens, tok);
     }
 
     return true;
 }
 
 #define printableKeyword(keyword) else if (tok.type == Token_ ## keyword) {\
-    printf("Keyword: " # keyword "\n");\
+    printDebug("Keyword: " # keyword "\n");\
 }
 
 void printTokens(TokenList tokens) {
-    printf("Tokens: %lu\n", tokens.numTokens);
+    printDebug("Tokens: %lu\n", tokens.numTokens);
 
     for (uint64_t i = 0; i < tokens.numTokens; i++) {
         Token tok = tokens.tokens[i];
+
+        printDebug("%ld:%ld ", tok.line, tok.col);
+
         // Assuming this is a character token
         if (tok.type < 127) {
-            printf("Character: %c\n", tok.type);
+            printDebug("Character: %c\n", tok.type);
         }
 
         printableKeyword(include)
@@ -224,19 +241,22 @@ void printTokens(TokenList tokens) {
         printableKeyword(char)
 
         else if (tok.type == Token_Ident) {
-            printf("Ident: %s\n", tok.ident);
+            printDebug("Ident: %s\n", tok.ident);
         }
         else if (tok.type == Token_ConstString) {
-            printf("String: %s\n", tok.constString);
+            printDebug("String: %s\n", tok.constString);
         }
         else if (tok.type == Token_ConstNumeric) {
-            printf("Number: %s\n", tok.numericWhole);
+            printDebug("Number: %s\n", tok.numericWhole);
         }
         else if (tok.type == Token_Whitespace) {
-            printf("Whitespace\n");
+            printDebug("Whitespace\n");
+        }
+        else if (tok.type == Token_NewLine) {
+            printDebug("\\n\n");
         }
         else {
-            printf("type: %d\n", tok.type);
+            printDebug("type: %d\n", tok.type);
             assert(false);
         }
     }
