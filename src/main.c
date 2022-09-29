@@ -6,11 +6,11 @@
 
 int main(int argc, char **argv) {
 
-    for (int i = 1; i < argc; i++) {
+    for (uint64_t i = 1; i < argc; i++) {
         // Open file
         Buffer fileBuff = {0};
 
-        if (0 != openAndReadFileToBuffer(argv[i], &fileBuff)) {
+        if (!openAndReadFileToBuffer(argv[i], &fileBuff)) {
             // There was an error reading the file
             printf("Error: couldn't read file: %s\n", argv[i]);
             continue;
@@ -21,12 +21,13 @@ int main(int argc, char **argv) {
         // Lex file
         TokenList tokens = {0};
 
-        if (0 != lexFile(fileBuff, &tokens)) {
+        if (!lexFile(fileBuff, &tokens)) {
             continue;
         }
 
         printTokens(tokens);
+        printf("\n");
 
-        // Parse file
+        // Parse tokens
     }
 }

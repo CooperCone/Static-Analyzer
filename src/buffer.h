@@ -1,9 +1,13 @@
 #pragma once
 
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+
 typedef struct {
     size_t size;
     size_t pos;
-    unsigned char *bytes;
+    uint8_t *bytes;
 } Buffer;
 
-int openAndReadFileToBuffer(char *fileName, Buffer *outBuff);
+bool openAndReadFileToBuffer(char *fileName, Buffer *outBuff);

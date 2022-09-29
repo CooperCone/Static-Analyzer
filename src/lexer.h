@@ -1,13 +1,16 @@
 #pragma once
 
+#include <stdbool.h>
+
 #include "buffer.h"
 
 typedef enum {
     Token_ConstInt = 256,
-    Token_ConstFloat,
+    Token_ConstNumeric,
     Token_ConstString,
     Token_ConstChar,
 
+    Token_Ident = 260,
     Token_Whitespace,
     Token_Comment,
 
@@ -21,10 +24,15 @@ typedef enum {
 typedef struct {
     TokenType type;
     union {
-        char *constInt;
-        char *constFloat;
+        char *ident;
+        char *whitespace;
         char *constString;
-        char *includePayload;
+        struct {
+            char *numericWhole;
+            char *numericDecimal;
+            char *numericSuffix;
+            char *numericPrefix;
+        };
     };
 } Token;
 
@@ -33,5 +41,5 @@ typedef struct {
     Token *tokens;
 } TokenList;
 
-int lexFile(Buffer buffer, TokenList *outTokens);
+bool lexFile(Buffer buffer, TokenList *outTokens);
 void printTokens(TokenList tokens);
