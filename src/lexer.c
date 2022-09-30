@@ -14,54 +14,6 @@ void appendTok(TokenList *tokens, Token tok) {
     tokens->tokens[tokens->numTokens - 1] = tok;
 }
 
-char peek(Buffer *buffer) {
-    return buffer->bytes[buffer->pos];
-}
-
-char peekAhead(Buffer *buffer, size_t lookahead) {
-    if (buffer->pos + lookahead > buffer->size)
-        return '\0';
-
-    return buffer->bytes[buffer->pos + lookahead];
-}
-
-bool peekMulti(Buffer *buffer, char *str) {
-    if (buffer->size <= strlen(str) + buffer->pos)
-        return false;
-
-    for (uint64_t i = 0; i < strlen(str); i++) {
-        if (buffer->bytes[buffer->pos + i] != str[i])
-            return false;
-    }
-
-    return true;
-}
-
-char consume(Buffer *buffer) {
-    char c = peek(buffer);
-    buffer->pos++;
-    return c;
-}
-
-bool consumeIf(Buffer *buffer, char c) {
-    if (peek(buffer) == c) {
-        buffer->pos++;
-        return true;
-    }
-
-    return false;
-}
-
-bool consumeMultiIf(Buffer *buffer, char *str) {
-    if (peekMulti(buffer, str)) {
-        buffer->pos += strlen(str);
-
-        return true;
-    }
-
-    return false;
-}
-
 #define SingleCharacterOp(op) else if (consumeIf(buff, op )) {\
     tok.type = op;\
     col++;\
@@ -100,14 +52,12 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
                 commentLength++;
             }
 
-            char *commentStr = malloc(commentLength + 1);
-            memcpy(commentStr, buff->bytes + buff->pos, commentLength);
-            commentStr[commentLength] = '\0';
-
+            char *commentStr = NULL;
+            consumeAndCopyOut(buff, commentLength, &commentStr);
+            
             tok.type = Token_Comment;
             tok.comment = commentStr;
 
-            buff->pos += commentLength;
             col += commentLength;
         }
 
@@ -132,15 +82,13 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
                 whitespaceLen++;
             }
 
-            char *whitespace = malloc(whitespaceLen + 1);
-            memcpy(whitespace, buff->bytes + buff->pos, whitespaceLen);
-            whitespace[whitespaceLen] = '\0';
-
-            buff->pos += whitespaceLen;
-            col += whitespaceLen;
+            char *whitespace = NULL;
+            consumeAndCopyOut(buff, whitespaceLen, &whitespace);
 
             tok.type = Token_Whitespace;
             tok.whitespace = whitespace;
+
+            col += whitespaceLen;
         }
 
         // Keywords
@@ -163,15 +111,13 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
                 identLength++;
             }
 
-            char *ident = malloc(identLength + 1);
-            memcpy(ident, buff->bytes + buff->pos, identLength);
-            ident[identLength] = '\0';
-
-            buffer.pos += identLength;
-            col += identLength;
+            char *ident = NULL;
+            consumeAndCopyOut(buff, identLength, &ident);
 
             tok.type = Token_Ident;
             tok.ident = ident;
+
+            col += identLength;
         }
 
         // Operators
@@ -195,16 +141,14 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
                 stringLength++;
             }
 
-            char *str = malloc(stringLength + 1);
-            memcpy(str, buffer.bytes + buffer.pos, stringLength);
-            str[stringLength] = '\0';
-
-            // + 1 so we can get the last "
-            buffer.pos += stringLength + 1;
-            col += stringLength + 2; // 2 so we also get the first one
+            char *str = NULL;
+            consumeAndCopyOut(buff, stringLength, &str);
 
             tok.type = Token_ConstString;
             tok.constString = str;
+
+            buffer.pos += 1; // Get the last "
+            col += stringLength + 2; // 2 so we also get the first one
         }
         // TODO: Prefix
         // TODO: Suffix
@@ -215,11 +159,9 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
                 wholeLen++;
             }
 
-            char *wholeStr = malloc(wholeLen + 1);
-            memcpy(wholeStr, buff->bytes + buff->pos, wholeLen);
-            wholeStr[wholeLen] = '\0';
+            char *wholeStr = NULL;
+            consumeAndCopyOut(buff, wholeLen, &wholeStr);
 
-            buffer.pos += wholeLen;
             col += wholeLen;
 
             if (peek(buff) == '.') {

@@ -2,6 +2,7 @@ Config
 - Rules to ignore
 - Params for certain rules
 - Have multiple config files and specify different ones
+- Default param
 
 Better description names with specific info about the 
 

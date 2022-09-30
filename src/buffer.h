@@ -11,3 +11,11 @@ typedef struct {
 } Buffer;
 
 bool openAndReadFileToBuffer(char *fileName, Buffer *outBuff);
+
+char peek(Buffer *buffer);
+char peekAhead(Buffer *buffer, size_t lookahead);
+bool peekMulti(Buffer *buffer, char *str);
+char consume(Buffer *buffer);
+bool consumeIf(Buffer *buffer, char c);
+bool consumeMultiIf(Buffer *buffer, char *str);
+void consumeAndCopyOut(Buffer *buffer, size_t numBytes, char **outStr);
