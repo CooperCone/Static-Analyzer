@@ -122,6 +122,8 @@ void rule_1_5_a(Rule rule, RuleContext context) {
     }
 }
 
+// FIXME: Rules 1.7.a and 1.7.b are pretty much identical,
+//        so they should probably be refactored
 // Verifies there is no use of auto keyword
 void rule_1_7_a(Rule rule, RuleContext context) {
     for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
@@ -129,6 +131,18 @@ void rule_1_7_a(Rule rule, RuleContext context) {
         if (tok.type == Token_auto) {
             reportRuleViolation(rule.name,
                 "Use of auto keyword is prohibited",
+                context.fileName, tok.line);
+        }
+    }
+}
+
+// Verifies there is no use of register keyword
+void rule_1_7_b(Rule rule, RuleContext context) {
+    for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
+        Token tok = context.tokens.tokens[i];
+        if (tok.type == Token_register) {
+            reportRuleViolation(rule.name,
+                "Use of register keyword is prohibited",
                 context.fileName, tok.line);
         }
     }

@@ -147,6 +147,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
         Keyword("include", Token_include)
         Keyword("return", Token_return)
         Keyword("auto", Token_auto)
+        Keyword("register", Token_register)
 
         // Types
         Keyword("int", Token_int)
@@ -261,9 +262,11 @@ void printTokens(TokenList tokens) {
 
         printableKeyword(include)
         printableKeyword(return)
+        printableKeyword(auto)
+        printableKeyword(register)
+
         printableKeyword(int)
         printableKeyword(char)
-        printableKeyword(auto)
 
         else if (tok.type == Token_Ident) {
             printDebug("Ident: %s\n", tok.ident);
