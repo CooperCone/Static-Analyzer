@@ -101,7 +101,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
             }
 
             char *commentStr = malloc(commentLength + 1);
-            memcpy(commentStr, buff->bytes, commentLength);
+            memcpy(commentStr, buff->bytes + buff->pos, commentLength);
             commentStr[commentLength] = '\0';
 
             tok.type = Token_Comment;
@@ -145,6 +145,8 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
 
         // Keywords
         Keyword("include", Token_include)
+        Keyword("return", Token_return)
+        Keyword("auto", Token_auto)
 
         // Types
         Keyword("int", Token_int)
@@ -258,8 +260,10 @@ void printTokens(TokenList tokens) {
         }
 
         printableKeyword(include)
+        printableKeyword(return)
         printableKeyword(int)
         printableKeyword(char)
+        printableKeyword(auto)
 
         else if (tok.type == Token_Ident) {
             printDebug("Ident: %s\n", tok.ident);

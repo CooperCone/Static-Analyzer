@@ -110,8 +110,26 @@ void rule_1_5_a(Rule rule, RuleContext context) {
         if (strcmp(tok.ident, "c") == 0)
             continue;
 
+        if (strcmp(tok.ident, "x") == 0)
+            continue;
+
+        if (strcmp(tok.ident, "y") == 0)
+            continue;
+
         reportRuleViolation(rule.name,
             "Variable names should be descriptive, thus not a single letter",
             context.fileName, tok.line);
+    }
+}
+
+// Verifies there is no use of auto keyword
+void rule_1_7_a(Rule rule, RuleContext context) {
+    for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
+        Token tok = context.tokens.tokens[i];
+        if (tok.type == Token_auto) {
+            reportRuleViolation(rule.name,
+                "Use of auto keyword is prohibited",
+                context.fileName, tok.line);
+        }
     }
 }

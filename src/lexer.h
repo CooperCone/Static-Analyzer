@@ -20,6 +20,7 @@ typedef enum {
 
     Token_include,
     Token_return,
+    Token_auto,
 } TokenType;
 
 typedef struct {

@@ -11,3 +11,6 @@ void rule_1_3_b(Rule rule, RuleContext context);
 // Verifies no single letter variable names
 // NOTE: Doesn't catch all abbreviations!!!
 void rule_1_5_a(Rule rule, RuleContext context);
+
+// Verifies there is no use of auto keyword
+void rule_1_7_a(Rule rule, RuleContext context);
