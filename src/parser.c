@@ -7,17 +7,23 @@
 
 #include "array.h"
 
+// CLEANUP: A lot of this can be combined
+// - need a pass, fail function
+// - optional parser
+// - list parser
+// - more parsers to make sure I didn't make mistakes
+
 Token peekTok(TokenList *tokens) {
     if (tokens->pos < tokens->numTokens)
         return tokens->tokens[tokens->pos];
-    
+
     return (Token){ .type = 0 };
 }
 
 Token peekAheadTok(TokenList *tokens, size_t lookahead) {
     if (lookahead + tokens->pos >= tokens->numTokens)
         return (Token){ .type = 0 };
-    
+
     return tokens->tokens[tokens->pos + lookahead];
 }
 
@@ -55,6 +61,10 @@ ParseRes parseCastExpr(TokenList *tokens, CastExpr *expr);
 ParseRes parseTypeSpecifier(TokenList *tokens, TypeSpecifier *type);
 ParseRes parseTypeQualifier(TokenList *tokens, TypeQualifier *typeQualifier);
 ParseRes parseAbstractDeclarator(TokenList *tokens, AbstractDeclarator *abstractDeclarator);
+ParseRes parseCompoundStmt(TokenList *tokens, CompoundStmt *outStmt);
+ParseRes parseStatement(TokenList *tokens, Statement *stmt);
+ParseRes parseDeclarationSpecifierList(TokenList *tokens, DeclarationSpecifierList *outList);
+ParseRes parseDeclarator(TokenList *tokens, Declarator *declarator);
 // End forward decls
 
 ParseRes parseArgExprList(TokenList *tokens, ArgExprList *argExprList) {
@@ -1108,34 +1118,34 @@ ParseRes parseAssignOp(TokenList *tokens, AssignOp *op) {
     if (consumeIfTok(tokens, '=')) {
         *op = Assign_Eq;
     }
-    else if (consumeIfTok(tokens, Token_MulEqOp)) {
+    else if (consumeIfTok(tokens, Token_MulAssign)) {
         *op = Assign_MulEq;
     }
-    else if (consumeIfTok(tokens, Token_DivEqOp)) {
+    else if (consumeIfTok(tokens, Token_DivAssign)) {
         *op = Assign_DivEq;
     }
-    else if (consumeIfTok(tokens, Token_ModEqOp)) {
+    else if (consumeIfTok(tokens, Token_ModAssign)) {
         *op = Assign_ModEq;
     }
-    else if (consumeIfTok(tokens, Token_AddEqOp)) {
+    else if (consumeIfTok(tokens, Token_AddAssign)) {
         *op = Assign_AddEq;
     }
-    else if (consumeIfTok(tokens, Token_SubEqOp)) {
+    else if (consumeIfTok(tokens, Token_SubAssign)) {
         *op = Assign_SubEq;
     }
-    else if (consumeIfTok(tokens, Token_ShiftLeftEqOp)) {
+    else if (consumeIfTok(tokens, Token_ShiftLeftAssign)) {
         *op = Assign_ShiftLeftEq;
     }
-    else if (consumeIfTok(tokens, Token_ShiftRightEqOp)) {
+    else if (consumeIfTok(tokens, Token_ShiftRightAssign)) {
         *op = Assign_ShiftRightEq;
     }
-    else if (consumeIfTok(tokens, Token_AndEqOp)) {
+    else if (consumeIfTok(tokens, Token_AndAssign)) {
         *op = Assign_AndEq;
     }
-    else if (consumeIfTok(tokens, Token_XorEqOp)) {
+    else if (consumeIfTok(tokens, Token_XorAssign)) {
         *op = Assign_XorEq;
     }
-    else if (consumeIfTok(tokens, Token_OrEqOp)) {
+    else if (consumeIfTok(tokens, Token_OrAssign)) {
         *op = Assign_OrEq;
     }
     else {
@@ -1185,6 +1195,35 @@ ParseRes parseAssignExpr(TokenList *tokens, AssignExpr *assignExpr) {
     return (ParseRes){ .success = true };
 }
 
+ParseRes parseExpr(TokenList *tokens, Expr *expr) {
+    bool hasComma = false;
+
+    do {
+        size_t pos = tokens->pos;
+
+        AssignExpr assign = {0};
+        ParseRes res = parseAssignExpr(tokens, &assign);
+        if (!res.success) {
+            tokens->pos = pos;
+            break;
+        }
+
+        ArrayAppend(expr->exprs, expr->numExprs, assign);
+
+        hasComma = consumeIfTok(tokens, ',');
+
+    } while(hasComma);
+
+    if (expr->numExprs == 0) {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expr needs at least one assign expr"
+        };
+    }
+
+    return (ParseRes){ .success = true };
+}
+
 ParseRes parseParameterDeclaration(TokenList *tokens, ParameterDeclaration *decl) {    
     DeclarationSpecifierList list = {0};
     ParseRes res = parseDeclarationSpecifierList(tokens, &list);
@@ -1212,7 +1251,7 @@ ParseRes parseParameterDeclaration(TokenList *tokens, ParameterDeclaration *decl
     size_t beforeAbstractDeclaratorPos = tokens->pos;
 
     AbstractDeclarator abstractDeclarator = {0};
-    if (parseAbstractDeclarator(tokens, &abstractDeclarator)) {
+    if (parseAbstractDeclarator(tokens, &abstractDeclarator).success) {
         decl->hasAbstractDeclarator = true;
         decl->hasDeclarator = false;
         decl->abstractDeclarator = malloc(sizeof(abstractDeclarator));
@@ -1229,7 +1268,7 @@ ParseRes parseParameterTypeList(TokenList *tokens, ParameterTypeList *list) {
     bool hasComma = false;
     do {
         // Look for an ellipsis and break
-        if (consumeIfTok(tokens, Token_EllipsisOp)) {
+        if (consumeIfTok(tokens, Token_Ellipsis)) {
             list->hasEndingEllipsis = true;
             break;
         }
@@ -1588,8 +1627,8 @@ ParseRes parsePostDirectDeclarator(TokenList *tokens, PostDirectDeclarator *post
                 // ] after star
             if (!postDeclarator->bracketHasInitialStatic &&
                 postDeclarator->bracketNumTypeQualifiers > 0 &&
-                peekTokAhead(tokens, 0).type == '*' &&
-                peekTokAhead(tokens, 1).type == ']')
+                peekAheadTok(tokens, 0).type == '*' &&
+                peekAheadTok(tokens, 1).type == ']')
             {
                 consumeTok(tokens);
                 consumeTok(tokens);
@@ -1749,7 +1788,7 @@ ParseRes parseDeclarator(TokenList *tokens, Declarator *declarator) {
     }
 
     declarator->directDeclarator = direct;
-    return (ParseRes){ .success = true; }
+    return (ParseRes){ .success = true };
 }
 
 ParseRes parseTypeQualifier(TokenList *tokens, TypeQualifier *outQualifier) {
@@ -1999,7 +2038,7 @@ ParseRes parseStructDeclaratorList(TokenList *tokens, StructDeclaratorList *decl
 
 ParseRes parseStructDeclaration(TokenList *tokens, StructDeclaration *declaration) {
     // Static assert declaration
-    if (peek(tokens, Token_staticAssert)) {
+    if (peekTok(tokens).type == Token_staticAssert) {
         StaticAssertDeclaration staticAssert = {0};
         ParseRes staticRes = parseStaticAssertDeclaration(tokens, &staticAssert);
         if (!staticRes.success)
@@ -2028,7 +2067,7 @@ ParseRes parseStructDeclaration(TokenList *tokens, StructDeclaration *declaratio
     ParseRes declRes = parseStructDeclaratorList(tokens, &declList);
     if (declRes.success) {
         declaration->normalHasStructDeclaratorList = true;
-        declaration->normalHasStructDeclaratorList = declList;
+        declaration->normalStructDeclaratorList = declList;
     }
     else {
         tokens->pos = preDeclaratorPos;
@@ -2150,7 +2189,7 @@ ParseRes parseEnumSpecifier(TokenList *tokens, EnumSpecifier *enumSpecifier) {
     if (consumeIfTok(tokens, '{')) {
         EnumeratorList enumList = {0};
         ParseRes listRes = parseEnumeratorList(tokens, &enumList);
-        if (!listRes)
+        if (!listRes.success)
             return listRes;
         
         if (!consumeIfTok(tokens, '}')) {
@@ -2271,14 +2310,42 @@ PostAtomicType:
     tokens->pos = pos;
 
     // Parse typedef nam
+    // FIXME: Keep Track of which names are typedefed
     assert(false);
 
     return fail;
 }
 
+ParseRes parseFunctionSpecifier(TokenList *tokens, FunctionSpecifier *funcSpecifier) {
+    if (consumeIfTok(tokens, Token_inline)) {
+        *funcSpecifier = FunctionSpecifier_Inline;
+        return (ParseRes){ .success = true };
+    }
+    if (consumeIfTok(tokens, Token_noreturn)) {
+        *funcSpecifier = FunctionSpecifier_Noreturn;
+        return (ParseRes){ .success = true };
+    }
+
+    return (ParseRes) {
+        .success = false,
+        .failMessage = "Expected inline or noreturn for function specifier"
+    };
+}
+
+ParseRes parseAlignmentSpecifier(TokenList *tokens, AlignmentSpecifier *alignment) {
+    if (!consumeIfTok(tokens, Token_alignas)) {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Alignment specifier expected an alignas keyword"
+        };
+    }
+}
+
 ParseRes parseDeclarationSpecifier(TokenList *tokens,
     DeclarationSpecifier *outSpec)
 {
+    size_t pos = tokens->pos;
+
     // Try parse storage class specifier
     StorageClassSpecifier storageClass = {0};
     ParseRes storageClassRes = parseStorageClassSpecifier(tokens, &storageClass);
@@ -2287,6 +2354,8 @@ ParseRes parseDeclarationSpecifier(TokenList *tokens,
         outSpec->storageClass = storageClass;
         return (ParseRes){ .success = true };
     }
+
+    tokens->pos = pos;
 
     // Try parse type specifier
     TypeSpecifier type = {0};
@@ -2297,14 +2366,38 @@ ParseRes parseDeclarationSpecifier(TokenList *tokens,
         return (ParseRes){ .success = true };
     }
 
+    tokens->pos = pos;
+
     // Try parse type qualifier
-    assert(false);
+    TypeQualifier qualifier = {0};
+    ParseRes qualifierRes = parseTypeQualifier(tokens, &qualifier);
+    if (qualifierRes.success) {
+        outSpec->type = DeclarationSpecifier_TypeQualifier;
+        outSpec->typeQualifier = qualifier;
+        return (ParseRes){ .success = true };
+    }
+
+    tokens->pos = pos;
 
     // Try parse function specifier
-    assert(false);
+    FunctionSpecifier funcSpecifier = {0};
+    ParseRes funcSpecRes = parseFunctionSpecifier(tokens, &funcSpecifier);
+    if (funcSpecRes.success) {
+        outSpec->type = DeclarationSpecifier_Func;
+        outSpec->function = funcSpecifier;
+        return (ParseRes){ .success = true };
+    }
+
+    tokens->pos = pos;
 
     // Try parse alignment specifier
-    assert(false);
+    AlignmentSpecifier alignSpec = {0};
+    ParseRes alignRes = parseAlignmentSpecifier(tokens, &alignSpec);
+    if (alignRes.success) {
+        outSpec->type = DeclarationSpecifier_Alignment;
+        outSpec->alignment = alignSpec;
+        return (ParseRes){ .success = true };
+    }
 
     return (ParseRes) {
         .success = false,
@@ -2330,6 +2423,631 @@ ParseRes parseDeclarationSpecifierList(TokenList *tokens,
     return (ParseRes) { .success = true };
 }
 
+ParseRes parseInitDeclarator(TokenList *tokens, InitDeclarator *initDeclarator) {
+    Declarator decl = {0};
+    ParseRes declaratorRes = parseDeclarator(tokens, &decl);
+    
+}
+
+ParseRes parseInitDeclaratorList(TokenList *tokens, InitDeclaratorList *initList) {
+    bool hasComma = false;
+    do {
+
+        size_t pos = tokens->pos;
+
+        // Parse an optional init declarator
+        InitDeclarator decl = {0};
+        ParseRes declRes = parseInitDeclarator(tokens, &decl);
+        if (!declRes.success) {
+            tokens->pos = pos;
+            break;
+        }
+
+        ArrayAppend(initList->initDeclarators,
+            initList->numInitDeclarators,
+            decl);
+
+        // Parse a ,
+        hasComma = consumeIfTok(tokens, ',');
+
+    } while (hasComma);
+
+    // Must have at least one
+    if (initList->numInitDeclarators == 0) {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expected init declarators in init declarator list"
+        };
+    }
+
+    return (ParseRes){ .success = true };
+}
+
+ParseRes parseDeclaration(TokenList *tokens, Declaration *outDef) {
+    // Try parse a static assert declaration
+    if (peekTok(tokens).type == Token_staticAssert) {
+        StaticAssertDeclaration staticDecl = {0};
+        ParseRes staticRes = parseStaticAssertDeclaration(tokens, &staticDecl);
+        if (!staticRes.success)
+            return staticRes;
+
+        outDef->type = Declaration_StaticAssert;
+        outDef->staticAssert = staticDecl;
+        return (ParseRes){ .success = true };
+    }
+
+    // Parse declaration specifiers
+    DeclarationSpecifierList specifiers = {0};
+    ParseRes listRes = parseDeclarationSpecifierList(tokens, &specifiers);
+    if (!listRes.success)
+        return listRes;
+    
+    outDef->type = Declaration_Normal;
+    outDef->declSpecifiers = specifiers;
+
+    // Parse optional init declarator list
+    size_t pos = tokens->pos;
+
+    InitDeclaratorList initList = {0};
+    ParseRes initRes = parseInitDeclaratorList(tokens, &initList);
+    if (initRes.success) {
+        outDef->hasInitDeclaratorList = true;
+        outDef->initDeclaratorList = initList;
+    }
+    else {
+        outDef->hasInitDeclaratorList = false;
+        tokens->pos = pos;
+    }
+
+    // Parse semicolon
+    if (!consumeIfTok(tokens, ';')) {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expected semicolon after declaration"
+        };
+    }
+
+    return (ParseRes){ .success = true };
+}
+
+ParseRes parseLabeledStatement(TokenList *tokens, LabeledStatement *stmt) {
+    if (peekTok(tokens).type == Token_Ident) {
+        Token tok = consumeTok(tokens);
+
+        if (!consumeIfTok(tokens, ':')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected : after label identifier"
+            };
+        }
+
+        stmt->type = LabeledStatement_Ident;
+        stmt->ident = tok.ident;
+    }
+    else if (consumeIfTok(tokens, Token_case)) {
+        ConditionalExpr constant = {0};
+        ParseRes constRes = parseConditionalExpr(tokens, &constant);
+        if (constRes.success) {
+            return constRes;
+        }
+
+        if (!consumeIfTok(tokens, ':')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected : after case label"
+            };
+        }
+
+        stmt->type = LabeledStatement_Case;
+        stmt->caseConstExpr = constant;
+    }
+    else if (consumeIfTok(tokens, Token_default)) {
+        if (!consumeIfTok(tokens, ':')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected : after case label"
+            };
+        }
+
+        stmt->type = LabeledStatement_Default;
+    }
+    else {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expected ident, case, or default for a labeled statment"
+        };
+    }
+
+    Statement inner = {0};
+    ParseRes res = parseStatement(tokens, &inner);
+    if (!res.success)
+        return res;
+
+    stmt->stmt = malloc(sizeof(inner));
+    memcpy(stmt->stmt, &inner, sizeof(inner));
+    return (ParseRes){ .success = true };
+}
+
+ParseRes parseSelectionStatement(TokenList *tokens, SelectionStatement *selection) {
+    if (consumeIfTok(tokens, Token_if)) {
+        if (!consumeIfTok(tokens, '(')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ( after if"
+            };
+        }
+
+        Expr expr = {0};
+        ParseRes exprRes = parseExpr(tokens, &expr);
+        if (!exprRes.success)
+            return exprRes;
+
+        selection->type = SelectionStatement_If;
+        selection->ifExpr = expr;
+
+        if (!consumeIfTok(tokens, ')')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ) after expr in if statement"
+            };
+        }
+
+        Statement stmt = {0};
+        ParseRes stmtRes = parseStatement(tokens, &stmt);
+        if (!stmtRes.success)
+            return stmtRes;
+
+        selection->ifTrueStmt = malloc(sizeof(stmt));
+        memcpy(selection->ifTrueStmt, &stmt, sizeof(stmt));
+
+        if (consumeIfTok(tokens, Token_else)) {
+            Statement elseStmt = {0};
+
+            ParseRes elseStmtRes = parseStatement(tokens, &elseStmt);
+            if (!elseStmtRes.success)
+                return elseStmtRes;
+
+            selection->ifHasElse = true;
+            selection->ifFalseStmt = malloc(sizeof(elseStmt));
+            memcpy(selection->ifFalseStmt, &elseStmt, sizeof(elseStmt));
+        }
+
+        return (ParseRes){ .success = true };
+    }
+    else if (consumeIfTok(tokens, Token_switch)) {
+        if (!consumeIfTok(tokens, '(')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ( after switch"
+            };
+        }
+
+        Expr expr = {0};
+        ParseRes exprRes = parseExpr(tokens, &expr);
+        if (!exprRes.success)
+            return exprRes;
+
+        selection->type = SelectionStatement_Switch;
+        selection->switchExpr = expr;
+
+        if (!consumeIfTok(tokens, ')')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ) after expr in switch statement"
+            };
+        }
+
+        Statement stmt = {0};
+        ParseRes stmtRes = parseStatement(tokens, &stmt);
+        if (!stmtRes.success)
+            return stmtRes;
+
+        selection->switchStmt = malloc(sizeof(stmt));
+        memcpy(selection->switchStmt, &stmt, sizeof(stmt));
+
+        return (ParseRes){ .success = true };
+    }
+    else {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expected if or switch for selection statement"
+        };
+    }
+}
+
+ParseRes parseExpressionStatement(TokenList *tokens, ExpressionStatement *expression) {
+    if (consumeIfTok(tokens, ';')) {
+        expression->isEmpty = true;
+        return (ParseRes){ .success = true };
+    }
+
+    Expr expr = {0};
+    ParseRes exprRes = parseExpr(tokens, &expr);
+    if (!exprRes.success)
+        return exprRes;
+
+    expression->isEmpty = false;
+    expression->expr = expr;
+
+    return (ParseRes){ .success = true };
+}
+
+ParseRes parseIterationStatement(TokenList *tokens, IterationStatement *iteration) {
+    // Try parse while
+    if (consumeIfTok(tokens, Token_while)) {
+        if (!consumeIfTok(tokens, '(')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ( after while"
+            };
+        }
+
+        Expr expr = {0};
+        ParseRes exprRes = parseExpr(tokens, &expr);
+        if (!exprRes.success)
+            return exprRes;
+
+        iteration->type = IterationStatement_While;
+        iteration->whileExpr = expr;
+
+        if (!consumeIfTok(tokens, ')')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ) after expr in while stmt"
+            };
+        }
+
+        Statement stmt = {0};
+        ParseRes stmtRes = parseStatement(tokens, &stmt);
+        if (!stmtRes.success)
+            return stmtRes;
+
+        iteration->whileStmt = malloc(sizeof(stmt));
+        memcpy(iteration->whileStmt, &stmt, sizeof(stmt));
+
+        return (ParseRes){ .success = true };
+    }
+
+    // Try parse do while
+    else if (consumeIfTok(tokens, Token_do)) {
+        Statement stmt = {0};
+        ParseRes stmtRes = parseStatement(tokens, &stmt);
+        if (!stmtRes.success)
+            return stmtRes;
+
+        iteration->doStmt = malloc(sizeof(stmt));
+        memcpy(iteration->doStmt, &stmt, sizeof(stmt));
+
+        if (!consumeIfTok(tokens, Token_while)) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected while after do statement"
+            };
+        }
+
+        if (!consumeIfTok(tokens, '(')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ( after while in do while stmt"
+            };
+        }
+
+        Expr expr = {0};
+        ParseRes exprRes = parseExpr(tokens, &expr);
+        if (!exprRes.success)
+            return exprRes;
+        
+        iteration->doExpr = expr;
+
+        if (!consumeIfTok(tokens, ')')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ) after expr in do while stmt"
+            };
+        }
+
+        if (!consumeIfTok(tokens, ';')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ; after ) in do while stmt"
+            };
+        }
+
+        return (ParseRes){ .success = true };
+    }
+
+    // Try parse for
+    else if (consumeIfTok(tokens, Token_for)) {
+        if (!consumeIfTok(tokens, '(')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ( after for in for stmt"
+            };
+        }
+
+        iteration->type = IterationStatement_For;
+
+        size_t pos = tokens->pos;
+        
+        // Parse optional declaration
+        Declaration decl = {0};
+        ParseRes declRes = parseDeclaration(tokens, &decl);
+        if (declRes.success) {
+            iteration->forHasInitialDeclaration = true;
+            iteration->forInitialDeclaration = decl;
+        }
+        else {
+            tokens->pos = pos;
+
+            iteration->forHasInitialDeclaration = false;
+
+            ExpressionStatement exprStmt = {0};
+            ParseRes exprStmtRes = parseExpressionStatement(tokens, &exprStmt);
+            if (!exprStmtRes.success)
+                return exprStmtRes;
+
+            iteration->forInitialExprStmt = exprStmt;
+        }
+
+        ExpressionStatement innerExprStmt = {0};
+        ParseRes innerExprRes = parseExpressionStatement(tokens, &innerExprStmt);
+        if (!innerExprRes.success)
+            return innerExprRes;
+
+        iteration->forInnerExprStmt = innerExprStmt;
+
+        size_t preExprPos = tokens->pos;
+
+        Expr expr = {0};
+        ParseRes exprRes = parseExpr(tokens, &expr);
+        if (exprRes.success) {
+            iteration->forHasFinalExpr = true;
+            iteration->forFinalExpr = expr;
+        }
+        else {
+            tokens->pos = preExprPos;
+        }
+
+        if (!consumeIfTok(tokens, ')')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ) after expressions in for stmt"
+            };
+        }
+
+        Statement stmt = {0};
+        ParseRes stmtRes = parseStatement(tokens, &stmt);
+        if (!stmtRes.success)
+            return stmtRes;
+
+        iteration->forStmt = malloc(sizeof(stmt));
+        memcpy(iteration->forStmt, &stmt, sizeof(stmt));
+
+        return (ParseRes){ .success = true };
+    }
+
+    else {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expected while, do, or for in iteration statement"
+        };
+    }
+}
+
+ParseRes parseJumpStatement(TokenList *tokens, JumpStatement *jump) {
+    if (consumeIfTok(tokens, Token_goto)) {
+        Token tok = consumeTok(tokens);
+        if (tok.type != Token_Ident) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected identifier after goto"
+            };
+        }
+
+        if (!consumeIfTok(tokens, ';')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ; after goto identifier"
+            };
+        }
+
+        jump->type = JumpStatement_Goto;
+        jump->gotoIdent = tok.ident;
+        return (ParseRes){ .success = true };
+    }
+    else if (consumeIfTok(tokens, Token_continue)) {
+        if (!consumeIfTok(tokens, ';')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ; after continue"
+            };
+        }
+
+        jump->type = JumpStatement_Continue;
+        return (ParseRes){ .success = true };
+    }
+    else if (consumeIfTok(tokens, Token_break)) {
+        if (!consumeIfTok(tokens, ';')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ; after break"
+            };
+        }
+
+        jump->type = JumpStatement_Break;
+        return (ParseRes){ .success = true };
+    }
+    else if (consumeIfTok(tokens, Token_return)) {
+        jump->type = JumpStatement_Return;
+
+        if (consumeIfTok(tokens, ';')) {
+            jump->returnHasExpr = false;
+            return (ParseRes){ .success = true };
+        }
+
+        Expr expr = {0};
+        ParseRes exprRes = parseExpr(tokens, &expr);
+        if (!exprRes.success)
+            return exprRes;
+
+        jump->returnHasExpr = true;
+        jump->returnExpr = expr;
+
+        return (ParseRes){ .success = true };
+    }
+    else {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expected goto, continue, break, or return in jump statement"
+        };
+    }
+}
+
+ParseRes parseStatement(TokenList *tokens, Statement *stmt) {
+    size_t pos = tokens->pos;
+
+    LabeledStatement labeled = {0};
+    if (parseLabeledStatement(tokens, &labeled).success) {
+        stmt->type = Statement_Labeled;
+        stmt->labeled = labeled;
+        return (ParseRes){ .success = true };
+    }
+
+    tokens->pos = pos;
+
+    // Parse compound statement
+    CompoundStmt compound = {0};
+    if (parseCompoundStmt(tokens, &compound).success) {
+        stmt->type = Statement_Compound;
+        stmt->compound = malloc(sizeof(compound));
+        memcpy(stmt->compound, &compound, sizeof(compound));
+        return (ParseRes){ .success = true };
+    }
+
+    tokens->pos = pos;
+
+    // Parse selection statement
+    SelectionStatement selection = {0};
+    if (parseSelectionStatement(tokens, &selection).success) {
+        stmt->type = Statement_Selection;
+        stmt->selection = selection;
+        return (ParseRes){ .success = true };
+    }
+
+    tokens->pos = pos;
+
+    // Parse iteration statement
+    IterationStatement iteration = {0};
+    if (parseIterationStatement(tokens, &iteration).success) {
+        stmt->type = Statement_Iteration;
+        stmt->iteration = iteration;
+        return (ParseRes){ .success = true };
+    }
+
+    tokens->pos = pos;
+
+    // Parse jump statement
+    JumpStatement jump = {0};
+    if (parseJumpStatement(tokens, &jump).success) {
+        stmt->type = Statement_Jump;
+        stmt->jump = jump;
+        return (ParseRes){ .success = true };
+    }
+
+    tokens->pos = pos;
+
+    // Parse expression statement
+    ExpressionStatement expression = {0};
+    if (parseExpressionStatement(tokens, &expression).success) {
+        stmt->type = Statement_Expression;
+        stmt->expression = expression;
+        return (ParseRes){ .success = true };
+    }
+
+    return (ParseRes) {
+        .success = false,
+        .failMessage = "Didn't find any statements"
+    };
+}
+
+ParseRes parseBlockItem(TokenList *tokens, BlockItem *item) {
+    // either a declaration or statement
+    size_t pos = tokens->pos;
+
+    Declaration decl = {0};
+    if (parseDeclaration(tokens, &decl).success) {
+        item->type = BlockItem_Declaration;
+        item->decl = decl;
+        return (ParseRes){ .success = true };
+    }
+
+    tokens->pos = pos;
+
+    Statement stmt = {0};
+    if (parseStatement(tokens, &stmt).success) {
+        item->type = BlockItem_Statement;
+        item->stmt = stmt;
+        return (ParseRes){ .success = true };
+    }
+
+    return (ParseRes){
+        .success = false,
+        .failMessage = "Expected either declaration or stmt in block item"
+    };
+}
+
+ParseRes parseBlockItemList(TokenList *tokens, BlockItemList *list) {
+    ParseRes blockItemRes = {0};
+    do {
+
+        // Parse opt block item
+        size_t pos = tokens->pos;
+
+        BlockItem item = {0};
+        blockItemRes = parseBlockItem(tokens, &item);
+        if (!blockItemRes.success) {
+            tokens->pos = pos;
+            break;
+        }
+
+        ArrayAppend(list->blockItems, list->numBlockItems, item);
+
+    } while(blockItemRes.success);
+
+    // Make sure we have at least one block item
+    if (list->numBlockItems == 0) {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expected at least one block item in a block item list"
+        };
+    }
+
+    return (ParseRes){ .success = true };
+}
+
+ParseRes parseCompoundStmt(TokenList *tokens, CompoundStmt *outStmt) {
+    if (!consumeIfTok(tokens, '{')) {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expected { to start compound statement"
+        };
+    }
+
+    if (consumeIfTok(tokens, '}')) {
+        outStmt->isEmpty = true;
+        return (ParseRes){ .success = true };
+    }
+
+    BlockItemList list = {0};
+    ParseRes listRes = parseBlockItemList(tokens, &list);
+    if (!listRes.success)
+        return listRes;
+
+    outStmt->isEmpty = false;
+    outStmt->blockItemList = list;
+    return (ParseRes){ .success = true };
+}
+
 ParseRes parseFuncDef(TokenList *tokens, FuncDef *outDef) {
     // Parse Declaration Specifiers
     DeclarationSpecifierList specifierList = {0};
@@ -2341,15 +3059,41 @@ ParseRes parseFuncDef(TokenList *tokens, FuncDef *outDef) {
     outDef->specifiers = specifierList;
 
     // Parse Declarator
-    assert(false);
+    Declarator declarator = {0};
+    ParseRes declRes = parseDeclarator(tokens, &declarator);
+    if (!declRes.success)
+        return declRes;
+    
+    outDef->declarator = declarator;
 
     // Parse Opt Declaration List
-    assert(false);
+    ParseRes listRes = {0};
+    do {
+
+        size_t pos = tokens->pos;
+
+        Declaration declaration = {0};
+        listRes = parseDeclaration(tokens, &declaration);
+        if (!listRes.success) {
+            tokens->pos = pos;
+            break;
+        }
+
+        ArrayAppend(outDef->declarations,
+            outDef->numDeclarations,
+            declaration);
+
+    } while(listRes.success);
 
     // Parse Compound Statement
-    assert(false);
+    CompoundStmt stmt = {0};
+    ParseRes stmtRes = parseCompoundStmt(tokens, &stmt);
+    if (!stmtRes.success)
+        return stmtRes;
 
-    return (ParseRes){0};
+    outDef->stmt = stmt;
+
+    return (ParseRes){ .success = true };
 }
 
 ParseRes parseExternalDecl(TokenList *tokens, ExternalDecl *outDecl) {
@@ -2365,7 +3109,18 @@ ParseRes parseExternalDecl(TokenList *tokens, ExternalDecl *outDecl) {
     tokens->pos = pos;
 
     // Parse declaration
-    assert(false);
+    Declaration decl = {0};
+    ParseRes declRes = parseDeclaration(tokens, &decl);
+    if (declRes.success) {
+        outDecl->type = ExternalDecl_Decl;
+        outDecl->decl = decl;
+        return (ParseRes){ .success = true };
+    }
+
+    return (ParseRes) {
+        .success = false,
+        .failMessage = "Couldn't find a function definition or declaration"
+    };
 }
 
 bool parseTokens(TokenList *tokens, TranslationUnit *outUnit) {

@@ -14,6 +14,11 @@ void appendTok(TokenList *tokens, Token tok) {
     tokens->tokens[tokens->numTokens - 1] = tok;
 }
 
+#define TripleCharacterOp(op, tokType) else if (consumeMultiIf(buff, op)) {\
+    tok.type = tokType;\
+    col += 3;\
+}
+
 #define DoubleCharacterOp(op, tokType) else if (consumeMultiIf(buff, op)) {\
     tok.type = tokType;\
     col += 2;\
@@ -96,25 +101,6 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
             col += whitespaceLen;
         }
 
-        // Keywords
-        Keyword("include", Token_include)
-        Keyword("return", Token_return)
-        Keyword("auto", Token_auto)
-        Keyword("register", Token_register)
-        Keyword("typedef", Token_typedef)
-        Keyword("extern", Token_extern)
-        Keyword("static", Token_static)
-        Keyword("_Thread_local", Token_threadLocal)
-        Keyword("_Atomic", Token_atomic)
-        Keyword("const", Token_const)
-        Keyword("restrict", Token_restrict)
-        Keyword("volatile", Token_volatile)
-        Keyword("sizeof", Token_sizeof)
-        Keyword("_Alignof", Token_alignof)
-        Keyword("__func__", Token_funcName)
-        Keyword("_Generic", Token_generic)
-        Keyword("default", Token_default)
-
         // Types
         Keyword("void", Token_void)
         Keyword("char", Token_char)
@@ -128,6 +114,43 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
         Keyword("_Bool", Token_bool)
         Keyword("_Complex", Token_complex)
         Keyword("_Imaginary", Token_imaginary)
+
+        // Keywords
+        Keyword("auto", Token_auto)
+        Keyword("break", Token_break)
+        Keyword("case", Token_case)
+        Keyword("const", Token_const)
+        Keyword("continue", Token_continue)
+        Keyword("default", Token_default)
+        Keyword("do", Token_do)
+        Keyword("else", Token_else)
+        Keyword("enum", Token_enum)
+        Keyword("extern", Token_extern)
+        Keyword("for", Token_for)
+        Keyword("goto", Token_goto)
+        Keyword("if", Token_if)
+        Keyword("inline", Token_inline)
+        Keyword("register", Token_register)
+        Keyword("restrict", Token_restrict)
+        Keyword("return", Token_return)
+        Keyword("sizeof", Token_sizeof)
+        Keyword("static", Token_static)
+        Keyword("struct", Token_struct)
+        Keyword("switch", Token_switch)
+        Keyword("typedef", Token_typedef)
+        Keyword("union", Token_union)
+        Keyword("volatile", Token_volatile)
+        Keyword("while", Token_while)
+
+        Keyword("_Alignas", Token_alignas)
+        Keyword("_Alignof", Token_alignof)
+        Keyword("_Atomic", Token_atomic)
+        Keyword("_Generic", Token_generic)
+        Keyword("_Noreturn", Token_noreturn)
+        Keyword("_Static_assert", Token_staticAssert)
+        Keyword("_Thread_local", Token_threadLocal)
+        Keyword("__func__", Token_funcName)
+
 
         // Identifier
         else if (peek(buff) == '_' || isalpha(peek(buff))) {
@@ -149,50 +172,54 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
         }
 
         // Operators
-        DoubleCharacterOp("->", Token_PtrOp)
+        TripleCharacterOp("...", Token_Ellipsis)
+
+        DoubleCharacterOp(">>=", Token_ShiftRightAssign)
+        DoubleCharacterOp("<<=", Token_ShiftLeftAssign)
+        DoubleCharacterOp("+=", Token_AddAssign)
+        DoubleCharacterOp("-=", Token_SubAssign)
+        DoubleCharacterOp("*=", Token_MulAssign)
+        DoubleCharacterOp("/=", Token_DivAssign)
+        DoubleCharacterOp("%%=", Token_ModAssign)
+        DoubleCharacterOp("&=", Token_AndAssign)
+        DoubleCharacterOp("^=", Token_XorAssign)
+        DoubleCharacterOp("|=", Token_OrAssign)
+        DoubleCharacterOp(">>", Token_ShiftRightOp)
+        DoubleCharacterOp("<<", Token_ShiftLeftOp)
         DoubleCharacterOp("++", Token_IncOp)
         DoubleCharacterOp("--", Token_DecOp)
-        DoubleCharacterOp("||", Token_LogOrOp)
+        DoubleCharacterOp("->", Token_PtrOp)
         DoubleCharacterOp("&&", Token_LogAndOp)
-        DoubleCharacterOp("==", Token_EqOp)
-        DoubleCharacterOp("!=", Token_NEqOp)
+        DoubleCharacterOp("||", Token_LogOrOp)
         DoubleCharacterOp("<=", Token_LEqOp)
         DoubleCharacterOp(">=", Token_GEqOp)
-        DoubleCharacterOp("<<", Token_ShiftLeftOp)
-        DoubleCharacterOp(">>", Token_ShiftRightOp)
-        DoubleCharacterOp("*=", Token_MulEqOp)
-        DoubleCharacterOp("/=", Token_DivEqOp)
-        DoubleCharacterOp("%%=", Token_ModEqOp)
-        DoubleCharacterOp("+=", Token_AddEqOp)
-        DoubleCharacterOp("-=", Token_SubEqOp)
-        DoubleCharacterOp("<<=", Token_ShiftLeftEqOp)
-        DoubleCharacterOp(">>=", Token_ShiftRightEqOp)
-        DoubleCharacterOp("&=", Token_AndEqOp)
-        DoubleCharacterOp("^=", Token_XorEqOp)
-        DoubleCharacterOp("|=", Token_OrEqOp)
+        DoubleCharacterOp("==", Token_EqOp)
+        DoubleCharacterOp("!=", Token_NEqOp)
 
-        SingleCharacterOp('.')
-        SingleCharacterOp(',')
         SingleCharacterOp(';')
-        SingleCharacterOp('<')
-        SingleCharacterOp('>')
         SingleCharacterOp('{')
         SingleCharacterOp('}')
+        SingleCharacterOp(',')
+        SingleCharacterOp(':')
+        SingleCharacterOp('=')
         SingleCharacterOp('(')
         SingleCharacterOp(')')
-        SingleCharacterOp('*')
+        SingleCharacterOp('[')
+        SingleCharacterOp(']')
+        SingleCharacterOp('.')
         SingleCharacterOp('&')
-        SingleCharacterOp('|')
-        SingleCharacterOp('^')
-        SingleCharacterOp('+')
+        SingleCharacterOp('!')
+        SingleCharacterOp('~')
         SingleCharacterOp('-')
+        SingleCharacterOp('+')
+        SingleCharacterOp('*')
         SingleCharacterOp('/')
         SingleCharacterOp('%')
-        SingleCharacterOp('~')
-        SingleCharacterOp('!')
-        SingleCharacterOp('=')
+        SingleCharacterOp('<')
+        SingleCharacterOp('>')
+        SingleCharacterOp('^')
+        SingleCharacterOp('|')
         SingleCharacterOp('?')
-        SingleCharacterOp(':')
 
         // Constants
         else if (consumeIf(buff, '"')) {
@@ -263,7 +290,6 @@ void printTokens(TokenList tokens) {
             printDebug("Character: %c\n", tok.type);
         }
 
-        printableKeyword(include)
         printableKeyword(return)
         printableKeyword(auto)
         printableKeyword(register)

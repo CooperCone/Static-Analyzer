@@ -434,7 +434,7 @@ typedef struct {
 
             bool bracketHasInitialStatic;
             size_t bracketNumTypeQualifiers;
-            TypeQualifier *bracketTypeQualifiers;
+            enum TypeQualifier *bracketTypeQualifiers;
 
             bool bracketHasStarAfterTypeQualifiers;
 
@@ -608,6 +608,24 @@ typedef enum {
 } StorageClassSpecifier;
 
 typedef enum {
+    FunctionSpecifier_Inline,
+    FunctionSpecifier_Noreturn,
+} FunctionSpecifier;
+
+typedef enum {
+    AlignmentSpecifier_TypeName,
+    AlignmentSpecifier_Constant,
+} AlignmentSpecifierType;
+
+typedef struct {
+    AlignmentSpecifierType type;
+    union {
+        TypeName typeName;
+        ConditionalExpr constant;
+    };
+} AlignmentSpecifier;
+
+typedef enum {
     DeclarationSpecifier_StorageClass,
     DeclarationSpecifier_Type,
     DeclarationSpecifier_TypeQualifier,
@@ -632,10 +650,170 @@ typedef struct {
 } DeclarationSpecifierList;
 
 typedef struct {
+    Declarator decl;
+    bool hasInitializer;
+    Initializer initializer;
+} InitDeclarator;
+
+typedef struct {
+    size_t numInitDeclarators;
+    InitDeclarator *initDeclarators;
+ } InitDeclaratorList;
+
+typedef enum {
+    Declaration_StaticAssert,
+    Declaration_Normal, // FIXME: Better name?
+} DeclarationType;
+
+typedef struct {
+    DeclarationType type;
+    union {
+        StaticAssertDeclaration staticAssert;
+        struct {
+            DeclarationSpecifierList declSpecifiers;
+            bool hasInitDeclaratorList;
+            InitDeclaratorList initDeclaratorList;
+        };
+    };
+} Declaration;
+
+typedef enum {
+    LabeledStatement_Ident,
+    LabeledStatement_Case,
+    LabeledStatement_Default,
+} LabeledStatementType;
+
+typedef struct {
+    LabeledStatementType type;
+    union {
+        char *ident;
+        ConditionalExpr caseConstExpr;
+    };
+    struct Statement *stmt;
+} LabeledStatement;
+
+typedef enum {
+    SelectionStatement_If,
+    SelectionStatement_Switch,
+} SelectionStatementType;
+
+typedef struct {
+    SelectionStatementType type;
+    union {
+        struct {
+            Expr ifExpr;
+            struct Statement *ifTrueStmt;
+            bool ifHasElse;
+            struct Statement *ifFalseStmt;
+        };
+        struct {
+            Expr switchExpr;
+            struct Statement *switchStmt;
+        };
+    };
+} SelectionStatement;
+
+typedef struct {
+    bool isEmpty;
+    Expr expr;
+} ExpressionStatement;
+
+typedef enum {
+    IterationStatement_While,
+    IterationStatement_DoWhile,
+    IterationStatement_For,
+} IterationStatementType;
+
+typedef struct {
+    IterationStatementType type;
+    union {
+        struct {
+            Expr whileExpr;
+            struct Statement *whileStmt;
+        };
+        struct {
+            struct Statement *doStmt;
+            Expr doExpr;
+        };
+        struct {
+            bool forHasInitialDeclaration;
+            Declaration forInitialDeclaration;
+            ExpressionStatement forInitialExprStmt;
+            ExpressionStatement forInnerExprStmt;
+            bool forHasFinalExpr;
+            Expr forFinalExpr;
+            struct Statement *forStmt;
+        };
+    };
+} IterationStatement;
+
+typedef enum {
+    JumpStatement_Goto,
+    JumpStatement_Continue,
+    JumpStatement_Break,
+    JumpStatement_Return,
+} JumpStatementType;
+
+typedef struct {
+    JumpStatementType type;
+    union {
+        char *gotoIdent;
+        struct {
+            bool returnHasExpr;
+            Expr returnExpr;
+        };
+    };
+} JumpStatement;
+
+typedef enum {
+    Statement_Labeled,
+    Statement_Compound,
+    Statement_Expression,
+    Statement_Selection,
+    Statement_Iteration,
+    Statement_Jump,
+} StatementType;
+
+typedef struct {
+    StatementType type;
+    union {
+        LabeledStatement labeled;
+        struct CompoundStatement *compound;
+        SelectionStatement selection;
+        IterationStatement iteration;
+        JumpStatement jump;
+        ExpressionStatement expression;
+    };
+} Statement;
+
+typedef enum {
+    BlockItem_Declaration,
+    BlockItem_Statement,
+} BlockItemType;
+
+typedef struct {
+    BlockItemType type;
+    union {
+        Declaration decl;
+        Statement stmt;
+    };
+} BlockItem;
+
+typedef struct {
+    size_t numBlockItems;
+    BlockItem *blockItems;
+} BlockItemList;
+
+typedef struct {
+    bool isEmpty;
+    BlockItemList blockItemList;
+} CompoundStmt;
+
+typedef struct {
     DeclarationSpecifierList specifiers;
     Declarator declarator;
     size_t numDeclarations;
-    Declaration declarations;
+    Declaration *declarations;
     CompoundStmt stmt;
 } FuncDef;
 
