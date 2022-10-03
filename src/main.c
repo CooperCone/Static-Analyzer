@@ -13,6 +13,9 @@ extern size_t g_rulesCount;
 
 int main(int argc, char **argv) {
 
+// I didn't really want to finish working on config stuff
+// TODO: Finish configurations
+#if 0
     // Read in config file
     Config configFile = {0};
     if (!readConfigFile("config/config.cfg", &configFile)) {
@@ -20,11 +23,38 @@ int main(int argc, char **argv) {
         assert(false);
     }
 
-    // Create rules
-
     // Delete rules from configs
+    for (uint64_t i = 0; i < configFile.numConfigValues; i++) {
+        ConfigValue value = configFile.configValues[i];
+        if (value.type != ConfigValue_Map)
+            continue;
+        
+        if (strcmp(value.mapKey, "ignore") != 0)
+            continue;
 
-    // Modify rules with configs
+        if (value.mapValue.type != ConfigValue_List) {
+            printf("Config Error: ignore map rule must have value of list\n");
+            continue;
+        }
+
+        for (uint64_t lstIdx = 0; lstIdx < value.mapValue->listSize; lstIdx++) {
+            ConfigValue elem = value.mapValue->listValues[lstIdx];
+            if (elem.type != ConfigValue_String) {
+                printf("Config Error: ignore list elem must be a string\n");
+                continue;
+            }
+
+            // FIXME: This isn't a good idea. We should get a list of masked
+            // rules, pass it into a function that gives us rules other than
+            // the masked ones to ignore
+            for (uint64_t ruleIdx = 0; ruleIdx < g_rulesCount; ruleIdx++) {
+                if (strcmp())
+            }
+        }
+    }
+#endif
+
+    // TODO: Modify rules with configs
 
     for (uint64_t i = 1; i < argc; i++) {
         // Open file

@@ -6,7 +6,7 @@
 bool openAndReadFileToBuffer(char *fileName, Buffer *outBuff) {
     if (outBuff == NULL)
         return false;
-    
+
     FILE *file = fopen(fileName, "r");
 
     if (file == NULL)

@@ -155,7 +155,7 @@ bool readConfigFile(char *configFileName, Config *outConfig) {
 
     printConfigTokens(tokens);
 
-    printf("\n\n");
+    printDebug("\n\n");
 
     tokens.curToken = 0;
 
@@ -174,4 +174,35 @@ bool readConfigFile(char *configFileName, Config *outConfig) {
     printConfig(*outConfig);
 
     return true;
+}
+
+void printConfigValueIndent(ConfigValue value, uint64_t indent) {
+    for (uint64_t i = 0; i < indent; i++)
+        printDebug(" ");
+    
+    if (value.type == ConfigValue_String) {
+        printDebug("%s\n", value.string);
+    }
+    else if (value.type == ConfigValue_List) {
+        printDebug("[\n");
+
+        for (uint64_t i = 0; i < value.listSize; i++) {
+            printConfigValueIndent(value.listValues[i], indent + 2);
+        }
+
+        for (uint64_t i = 0; i < indent; i++)
+            printDebug(" ");
+        printDebug("]\n");
+    }
+    else if (value.type == ConfigValue_Map) {
+        printDebug("%s:\n", value.mapKey);
+        printConfigValueIndent(*(value.mapValue), indent + 2);
+    }
+}
+
+void printConfig(Config config) {
+    printDebug("Config:\n");
+    for (uint64_t i = 0; i < config.numConfigValues; i++) {
+        printConfigValueIndent(config.configValues[i], 2);
+    }
 }

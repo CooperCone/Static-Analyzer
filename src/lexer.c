@@ -14,6 +14,11 @@ void appendTok(TokenList *tokens, Token tok) {
     tokens->tokens[tokens->numTokens - 1] = tok;
 }
 
+#define DoubleCharacterOp(op, tokType) else if (consumeMultiIf(buff, op)) {\
+    tok.type = tokType;\
+    col += 2;\
+}
+
 #define SingleCharacterOp(op) else if (consumeIf(buff, op )) {\
     tok.type = op;\
     col++;\
@@ -96,10 +101,33 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
         Keyword("return", Token_return)
         Keyword("auto", Token_auto)
         Keyword("register", Token_register)
+        Keyword("typedef", Token_typedef)
+        Keyword("extern", Token_extern)
+        Keyword("static", Token_static)
+        Keyword("_Thread_local", Token_threadLocal)
+        Keyword("_Atomic", Token_atomic)
+        Keyword("const", Token_const)
+        Keyword("restrict", Token_restrict)
+        Keyword("volatile", Token_volatile)
+        Keyword("sizeof", Token_sizeof)
+        Keyword("_Alignof", Token_alignof)
+        Keyword("__func__", Token_funcName)
+        Keyword("_Generic", Token_generic)
+        Keyword("default", Token_default)
 
         // Types
-        Keyword("int", Token_int)
+        Keyword("void", Token_void)
         Keyword("char", Token_char)
+        Keyword("short", Token_short)
+        Keyword("int", Token_int)
+        Keyword("long", Token_long)
+        Keyword("float", Token_float)
+        Keyword("double", Token_double)
+        Keyword("signed", Token_signed)
+        Keyword("unsigned", Token_unsigned)
+        Keyword("_Bool", Token_bool)
+        Keyword("_Complex", Token_complex)
+        Keyword("_Imaginary", Token_imaginary)
 
         // Identifier
         else if (peek(buff) == '_' || isalpha(peek(buff))) {
@@ -121,7 +149,28 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
         }
 
         // Operators
-        SingleCharacterOp('#')
+        DoubleCharacterOp("->", Token_PtrOp)
+        DoubleCharacterOp("++", Token_IncOp)
+        DoubleCharacterOp("--", Token_DecOp)
+        DoubleCharacterOp("||", Token_LogOrOp)
+        DoubleCharacterOp("&&", Token_LogAndOp)
+        DoubleCharacterOp("==", Token_EqOp)
+        DoubleCharacterOp("!=", Token_NEqOp)
+        DoubleCharacterOp("<=", Token_LEqOp)
+        DoubleCharacterOp(">=", Token_GEqOp)
+        DoubleCharacterOp("<<", Token_ShiftLeftOp)
+        DoubleCharacterOp(">>", Token_ShiftRightOp)
+        DoubleCharacterOp("*=", Token_MulEqOp)
+        DoubleCharacterOp("/=", Token_DivEqOp)
+        DoubleCharacterOp("%%=", Token_ModEqOp)
+        DoubleCharacterOp("+=", Token_AddEqOp)
+        DoubleCharacterOp("-=", Token_SubEqOp)
+        DoubleCharacterOp("<<=", Token_ShiftLeftEqOp)
+        DoubleCharacterOp(">>=", Token_ShiftRightEqOp)
+        DoubleCharacterOp("&=", Token_AndEqOp)
+        DoubleCharacterOp("^=", Token_XorEqOp)
+        DoubleCharacterOp("|=", Token_OrEqOp)
+
         SingleCharacterOp('.')
         SingleCharacterOp(',')
         SingleCharacterOp(';')
@@ -132,6 +181,18 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
         SingleCharacterOp('(')
         SingleCharacterOp(')')
         SingleCharacterOp('*')
+        SingleCharacterOp('&')
+        SingleCharacterOp('|')
+        SingleCharacterOp('^')
+        SingleCharacterOp('+')
+        SingleCharacterOp('-')
+        SingleCharacterOp('/')
+        SingleCharacterOp('%')
+        SingleCharacterOp('~')
+        SingleCharacterOp('!')
+        SingleCharacterOp('=')
+        SingleCharacterOp('?')
+        SingleCharacterOp(':')
 
         // Constants
         else if (consumeIf(buff, '"')) {

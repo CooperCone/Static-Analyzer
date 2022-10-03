@@ -30,3 +30,4 @@ typedef struct {
 } Config;
 
 bool readConfigFile(char *configFileName, Config *outConfig);
+void printConfig(Config config);
