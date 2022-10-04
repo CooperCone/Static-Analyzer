@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "array.h"
+#include "debug.h"
 
 // CLEANUP: A lot of this can be combined
 // - need a pass, fail function
@@ -3133,5 +3134,978 @@ bool parseTokens(TokenList *tokens, TranslationUnit *outUnit) {
             printf("Error: %s\n", res.failMessage);
         }
         ArrayAppend(outUnit->decls, outUnit->numDecls, decl);
+    }
+}
+
+#define BaseIndent 2
+
+void printIndent(uint64_t indent) {
+    for (uint64_t i = 0; i < indent; i++)
+        printDebug(" ");
+}
+
+void printAndExpr(AndExpr expr, uint64_t indent) {
+    for (size_t i = 0; i < expr.numExprs; i++) {
+        printEqualityExpr(expr.exprs[i], indent);
+        if (i != expr.numExprs - 1) {
+            printIndent(indent + BaseIndent);
+            printDebug("&\n");
+        }
+    }
+}
+
+void printExclusiveOrExpr(ExclusiveOrExpr expr, uint64_t indent) {
+    for (size_t i = 0; i < expr.numExprs; i++) {
+        printAndExpr(expr.exprs[i], indent);
+        if (i != expr.numExprs - 1) {
+            printIndent(indent + BaseIndent);
+            printDebug("^\n");
+        }
+    }
+}
+
+void printInclusiveOrExpr(InclusiveOrExpr expr, uint64_t indent) {
+    for (size_t i = 0; i < expr.numExprs; i++) {
+        printExclusiveOrExpr(expr.exprs[i], indent);
+        if (i != expr.numExprs - 1) {
+            printIndent(indent + BaseIndent);
+            printDebug("|\n");
+        }
+    }
+}
+
+void printLogicalAndExpr(LogicalAndExpr expr, uint64_t indent) {
+    for (size_t i = 0; i < expr.numExprs; i++) {
+        printInclusiveOrExpr(expr.exprs[i], indent);
+        if (i != expr.numExprs - 1) {
+            printIndent(indent + BaseIndent);
+            printDebug("&&\n");
+        }
+    }
+}
+
+void printLogicalOrExpr(LogicalOrExpr orExpr, uint64_t indent) {
+    for (size_t i = 0; i < orExpr.numExprs; i++) {
+        printLogicalAndExpr(orExpr.exprs[i], indent);
+        if (i != orExpr.numExprs - 1) {
+            printIndent(indent + BaseIndent);
+            printDebug("||\n");
+        }
+    }
+}
+
+void printConditionalExpr(ConditionalExpr expr, uint64_t indent) {
+    printLogicalOrExpr(expr.beforeExpr, indent);
+
+    if (expr.hasConditionalOp) {
+        printIndent(indent);
+        printDebug("?\n");
+        printExpr(*(expr.ifTrueExpr), indent + BaseIndent);
+        printIndent(indent);
+        printDebug(":\n");
+        printConditionalExpr(*(expr.ifFalseExpr), indent + BaseIndent);
+    }
+}
+
+void printAssignOp(AssignOp op, uint64_t indent) {
+    printIndent(indent);
+    switch (op) {
+        case Assign_Eq: {
+            printDebug("=\n");
+            break;
+        }
+        case Assign_MulEq: {
+            printDebug("*=\n");
+            break;
+        }
+        case Assign_DivEq: {
+            printDebug("/=\n");
+            break;
+        }
+        case Assign_ModEq: {
+            printDebug("%%=\n");
+            break;
+        }
+        case Assign_AddEq: {
+            printDebug("+=\n");
+            break;
+        }
+        case Assign_SubEq: {
+            printDebug("-=\n");
+            break;
+        }
+        case Assign_ShiftLeftEq: {
+            printDebug("<<=\n");
+            break;
+        }
+        case Assign_ShiftRightEq: {
+            printDebug(">>=\n");
+            break;
+        }
+        case Assign_AndEq: {
+            printDebug("&=\n");
+            break;
+        }
+        case Assign_XorEq: {
+            printDebug("^=\n");
+            break;
+        }
+        case Assign_OrEq: {
+            printDebug("|=\n");
+            break;
+        }
+        default: {
+            assert(false);
+            break;
+        }
+    }
+} 
+
+void printAssignExpr(AssignExpr expr, uint64_t indent) {
+    for (size_t i = 0; i < expr.numAssignOps; i++) {
+        printUnaryExpr(expr.leftExprs[i].leftExpr, indent);
+        printAssignOp(expr.leftExprs[i].op, indent + BaseIndent);
+    }
+    printConditionalExpr(expr.rightExpr, indent);
+}
+
+void printExpr(Expr expr, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Expr: %ld\n", expr.numExprs);
+    for (size_t i = 0; i < expr.numExprs; i++) {
+        printAssignExpr(expr.exprs[i]);
+    }
+}
+
+void printParameterDeclaration(ParameterDeclaration decl, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Parameter Decl:\n");
+
+    printDeclarationSpecifierList(*(decl.declarationSpecifiers), indent + BaseIndent);
+
+    if (decl.hasDeclarator) {
+        printDeclarator(*(decl.declarator), indent + BaseIndent);
+    }
+
+    if (decl.hasAbstractDeclarator) {
+        printAbstractDeclarator(*(decl.abstractDeclarator), indent + BaseIndent);
+    }
+}
+
+void printParameterTypeList(ParameterTypeList list, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Parameter Type List: %ld\n", list.numParamDecls);
+    for (size_t i = 0; i < list.numParamDecls; i++) {
+        printParameterDeclaration(list.paramDecls[i], indent + BaseIndent);
+    }
+    if (list.hasEndingEllipsis) {
+        printIndent(indent + BaseIndent);
+        printDebug("...\n");
+    }
+}
+
+void printPostDirectAbstractDeclarator(PostDirectAbstractDeclarator post, uint64_t indent) {
+    printIndent(indent);
+    if (post.type == PostDirectAbstractDeclarator_Paren) {
+        if (post.parenIsEmpty) {
+            printDebug("( )\n");
+        }
+        else {
+            printDebug("(\n");
+
+            printParameterTypeList(post.parenParamList, indent + BaseIndent);
+
+            printIndent(indent);
+            printDebug(")\n");
+        }
+    }
+    else if (post.type == PostDirectAbstractDeclarator_Bracket) {
+        if (post.bracketIsEmpty) {
+            printDebug("[ ]\n");
+        }
+        else if (post.bracketIsStar) {
+            printDebug("[ * ]\n");
+        }
+        else {
+            if (post.bracketHasInitialStatic) {
+                printDebug("static\n");
+            }
+
+            printIndent(indent + BaseIndent);
+            printDebug("Type qualifier list: %ld\n", post.bracketTypeQualifierListLength);
+            for (size_t i = 0; i < post.bracketTypeQualifierListLength; i++) {
+                printTypeQualifier(post.bracketTypeQualifiers[i], indent + BaseIndent + BaseIndent);
+            }
+
+            if (post.bracketHasMiddleStatic) {
+                printIndent(indent + BaseIndent);
+                printDebug("static\n");
+            }
+
+            if (post.bracketHasAssignmentExpr) {
+                printIndent(indent + BaseIndent);
+                printAssignExpr(post.bracketAssignExpr, indent + BaseIndent);
+            }            
+        }
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printDirectAbstractDeclarator(DirectAbstractDeclarator direct, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Direct Abstract Declarator\n");
+
+    if (direct.hasAbstractDeclarator) {
+        printIndent(indent);
+        printDebug("(\n");
+
+        printAbstractDeclarator(*(direct.abstractDeclarator), indent + BaseIndent);
+
+        printIndent(indent);
+        printDebug(")\n");
+    }
+
+    for (size_t i = 0; i < direct.numPostDirectAbstractDeclarators; i++) {
+        printPostDirectAbstractDeclarator(direct.postDirectAbstractDeclarators[i], indent + BaseIndent);
+    }
+}
+
+void printPointer(Pointer pointer, uint64_t indent) {
+    printIndent(indent);
+    for (size_t i = 0; i < pointer.numPtrs; i++) {
+        printDebug("*");
+    }
+
+    printDebug("\n");
+
+    for (size_t i = 0; i < pointer.numTypeQualifiers; i++) {
+        printTypeQualifier(pointer.typeQualifiers[i], indent + BaseIndent);
+    }
+
+    if (pointer.hasPtr) {
+        printPointer(*(pointer.pointer), indent + BaseIndent);
+    }
+}
+
+void printAbstractDeclarator(AbstractDeclarator decl, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Abstract Declarator:\n");
+    if (decl.hasPointer)
+        printPointer(decl.pointer, indent + BaseIndent);
+    
+    if (decl.hasDirectAbstractDeclarator)
+        printDirectAbstractDeclarator(decl.directAbstractDeclarator, indent + BaseIndent);
+}
+
+void printPostDirectDeclarator(PostDirectDeclarator post, uint64_t indent) {
+    if (post.type == PostDirectDeclarator_Paren) {
+        printIndent(indent);
+        if (post.parenNumIdents == 0) {
+            printDebug("( )\n");
+        }
+        else {
+            printDebug("(\n");
+
+            for (size_t i = 0; i < post.parenNumIdents; i++) {
+                printIndent(indent + BaseIndent);
+                printDebug("%s\n", post.parenIdents[i]);
+            }
+
+            printIndent(indent);
+            printDebug(")\n");
+        }
+    }
+    else if (post.type == PostDirectDeclarator_Bracket) {
+        printIndent(indent);
+        if (post.bracketIsEmpty) {
+            printDebug("[ ]\n");
+        }
+        else if (post.bracketIsStar) {
+            printDebug("[ * ]\n");
+        }
+        else {
+            printDebug("[\n");
+            
+            if (post.bracketHasInitialStatic) {
+                printIndent(indent + BaseIndent);
+                printDebug("static\n");
+            }
+
+            printIndent(indent + BaseIndent);
+            printDebug("Type qualifier list: %ld\n", post.bracketNumTypeQualifiers);
+            for (size_t i = 0; i < post.bracketNumTypeQualifiers; i++) {
+                printTypeQualifier(post.bracketTypeQualifiers[i], indent + BaseIndent + BaseIndent);
+            }
+
+            if (post.bracketHasMiddleStatic) {
+                printIndent(indent + BaseIndent);
+                printDebug("static\n");
+            }
+
+            if (post.bracketHasAssignExpr) {
+                printIndent(indent + BaseIndent);
+                printAssignExpr(post.bracketAssignExpr, indent + BaseIndent);
+            }            
+        }
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printDirectDeclarator(DirectDeclarator direct, uint64_t indent) {
+    printIndent(indent);
+    if (direct.type == DirectDeclarator_Ident) {
+        printDebug("%s\n", direct.ident);
+    }
+    else if (direct.type == DirectDeclarator_ParenDeclarator) {
+        printDebug("(\n");
+
+        printDeclarator(*(direct.declarator), indent + BaseIndent);
+
+        printIndent(indent);
+        printDebug(")\n");
+    }
+    else {
+        assert(false);
+    }
+
+    printIndent(indent + BaseIndent);
+    printDebug("Post Direct Declarator: %ld\n", direct.numPostDirectDeclarators);
+    for (size_t i = 0; i < direct.numPostDirectDeclarators; i++) {
+        printPostDirectDeclarator(direct.postDirectDeclarators[i], indent + BaseIndent + BaseIndent);
+    }
+}
+
+void printDeclarator(Declarator decl, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Declarator\n");
+    if (decl.hasPointer) {
+        printPointer(decl.pointer, indent + BaseIndent);
+    }
+    printDirectDeclarator(decl.directDeclarator, indent + BaseIndent);
+}
+
+void printTypeQualifier(TypeQualifier qual, uint64_t indent) {
+    printIndent(indent);
+    switch (qual) {
+        case Qualifier_Const: {
+            printDebug("const\n");
+            break;
+        }
+        case Qualifier_Restrict: {
+            printDebug("restrict\n");
+            break;
+        }
+        case Qualifier_Volatile: {
+            printDebug("volatile\n");
+            break;
+        }
+        case Qualifier_Atomic: {
+            printDebug("atomic\n");
+            break;
+        }
+        default: {
+            assert(false);
+            break;
+        }
+    }
+}
+
+void printSpecifierQualifier(SpecifierQualifier specQual, uint64_t indent) {
+    if (specQual.type == SpecifierQualifier_Specifier) {
+        printTypeSpecifier(*(specQual.typeSpecifier), indent);
+    }
+    else if (specQual.type == SpecifierQualifier_Qualifier) {
+        printTypeQualifier(specQual.typeQualifier, indent);
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printSpecifierQualifierList(SpecifierQualifierList list, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Specifier Qualifier List: %ld\n", list.numSpecifierQualifiers);
+    for (size_t i = 0; i < list.numSpecifierQualifiers; i++) {
+        printSpecifierQualifier(list.specifierQualifiers[i], indent + BaseIndent);
+    }
+}
+
+void printTypeName(TypeName name, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Type Name\n");
+    printSpecifierQualifierList(name.specifierQualifiers, indent + BaseIndent);
+    if (name.hasAbstractDeclarator)
+        printAbstractDeclarator(name.abstractDeclarator, indent + BaseIndent);
+}
+
+void printStructDeclarator(StructDeclarator decl, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Struct Declarator\n");
+    if (decl.hasDeclarator)
+        printDeclarator(decl.declarator, indent + BaseIndent);
+    if (decl.hasConstExpr)
+        printConditionalExpr(decl.constExpr, indent + BaseIndent);
+}
+
+void printStructDeclaratorList(StructDeclaratorList list, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Struct Declarator List: %lu\n", list.numStructDeclarators);
+    for (size_t i = 0; i < list.numStructDeclarators; i++) {
+        printStructDeclarator(list.structDeclarators[i], indent + BaseIndent);
+    }
+}
+
+void printStaticAssertDeclaration(StaticAssertDeclaration staticAssert, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Static Assert\n");
+    printConditionalExpr(staticAssert.constantExpr, indent + BaseIndent);
+    printIndent(indent + BaseIndent);
+    printDebug(",\n");
+    printIndent(indent + BaseIndent);
+    printDebug("%s\n", staticAssert.stringLiteral);
+}
+
+void printStructDeclaration(StructDeclaration decl, uint64_t indent) {
+    if (decl.type == StructDeclaration_StaticAssert) {
+        printStaticAssertDeclaration(decl.staticAssert, indent);
+    }
+    else if (decl.type == StructDeclaration_Normal) {
+        printIndent(indent);
+        printDebug("Struct Declaration:\n");
+        printSpecifierQualifierList(decl.normalSpecifierQualifiers, indent + BaseIndent);
+        if (decl.normalHasStructDeclaratorList) {
+            printStructDeclaratorList(decl.normalStructDeclaratorList, indent + BaseIndent);
+        }
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printStructOrUnionSpecifier(StructOrUnionSpecifier structOrUnion, uint64_t indent) {
+    printIndent(indent);
+    if (structOrUnion.structOrUnion == StructOrUnion_Struct) {
+        printDebug("struct");
+    }
+    else if (structOrUnion.structOrUnion == StructOrUnion_Union) {
+        printDebug("enum");
+    }
+    else {
+        assert(false);
+    }
+
+    if (structOrUnion.hasIdent) {
+        printDebug(" %s\n", structOrUnion.ident);
+    }
+    else {
+        printDebug("\n");
+    }
+
+    printIndent(indent);
+    if (!structOrUnion.hasStructDeclarationList) {
+        printDebug("{ }\n");
+    }
+    else {
+        printDebug("{\n");
+
+        for (size_t i = 0; i < structOrUnion.numStructDecls; i++) {
+            printStructDeclaration(structOrUnion.structDeclarations[i], indent + BaseIndent);
+        }
+
+        printIndent(indent);
+        printDebug("}\n");
+    }
+}
+
+void printEnumerator(Enumerator enumer, uint64_t indent) {
+    printIndent(indent);
+    printDebug("%s", enumer.constantIdent);
+    if (enumer.hasConstExpr) {
+        printDebug(" = \n");
+        printConditionalExpr(enumer.constantExpr, indent + BaseIndent);
+    }
+    else {
+        printDebug("\n");
+    }
+}
+
+void printEnumeratorList(EnumeratorList enumList, uint64_t indent) {
+    printIndent(indent);
+    printDebug("EnumeratorList: %lu\n", enumList.numEnumerators);
+    for (size_t i = 0; i < enumList; i++) {
+        printEnumerator(enumList.enumerators[i], indent + BaseIndent);
+    }
+}
+
+void printEnumSpecifier(EnumSpecifier enumSpec, uint64_t indent) {
+    printIndent(indent);
+    if (enumSpec.hasIdent)
+        printDebug("enum %s\n", enumSpec.ident);
+    else
+        printDebug("enum\n");
+    
+    if (enumSpec.hasEnumeratorList) {
+        printEnumeratorList(enumSpec.enumeratorList, indent + BaseIndent);
+    }
+}
+
+void printTypeSpecifier(TypeSpecifier type, uint64_t indent) {
+    switch (type.type) {
+        case TypeSpecifier_Void: {
+            printIndent(indent);
+            printDebug("void");
+            break;
+        }
+        case TypeSpecifier_Char: {
+            printIndent(indent);
+            printDebug("char");
+            break;
+        }
+        case TypeSpecifier_Short: {
+            printIndent(indent);
+            printDebug("short");
+            break;
+        }
+        case TypeSpecifier_Int: {
+            printIndent(indent);
+            printDebug("int");
+            break;
+        }
+        case TypeSpecifier_Long: {
+            printIndent(indent);
+            printDebug("long");
+            break;
+        }
+        case TypeSpecifier_Float: {
+            printIndent(indent);
+            printDebug("float");
+            break;
+        }
+        case TypeSpecifier_Double: {
+            printIndent(indent);
+            printDebug("double");
+            break;
+        }
+        case TypeSpecifier_Signed: {
+            printIndent(indent);
+            printDebug("signed");
+            break;
+        }
+        case TypeSpecifier_Unsigned: {
+            printIndent(indent);
+            printDebug("unsigned");
+            break;
+        }
+        case TypeSpecifier_Bool: {
+            printIndent(indent);
+            printDebug("bool");
+            break;
+        }
+        case TypeSpecifier_Complex: {
+            printIndent(indent);
+            printDebug("complex");
+            break;
+        }
+        case TypeSpecifier_Imaginary: {
+            printIndent(indent);
+            printDebug("imaginary");
+            break;
+        }
+        case TypeSpecifier_AtomicType: {
+            printIndent(indent);
+            printDebug("Atomic type specifier:\n");
+            printTypeName(type.atomicName, indent + BaseIndent);
+            break;
+        }
+        case TypeSpecifier_StructOrUnion: {
+            printStructOrUnionSpecifier(type.structOrUnion, indent + BaseIndent);
+            break;
+        }
+        case TypeSpecifier_Enum: {
+            printEnumSpecifier(type.enumSpecifier, indent + BaseIndent);
+            break;
+        }
+        case TypeSpecifier_TypedefName: {
+            printIndent(indent);
+            printDebug("Typedefed name: %s\n", type.typedefName);
+            break;
+        }
+        default: {
+            assert(false);
+            break;
+        }
+    }
+}
+
+void printStorageClassSpecifier(StorageClassSpecifier storage, uint64_t indent) {
+    printIndent(indent);
+    switch (storage) {
+        case StorageClass_Typedef: {
+            printDebug("typedef\n");
+            break;
+        }
+        case StorageClass_Extern: {
+            printDebug("extern\n");
+            break;
+        }
+        case StorageClass_Static: {
+            printDebug("static\n");
+            break;
+        }
+        case StorageClass_Thread_Local: {
+            printDebug("thread_local\n");
+            break;
+        }
+        case StorageClass_Auto: {
+            printDebug("auto\n");
+            break;
+        }
+        case StorageClass_Register: {
+            printDebug("register\n");
+            break;
+        }
+        default: {
+            assert(false);
+            break;
+        }
+    }
+}
+
+void printFunctionSpecifier(FunctionSpecifier func, uint64_t indent) {
+    printIndent(indent);
+    if (func == FunctionSpecifier_Inline) {
+        printDebug("inline\n");
+    }
+    else if (func == FunctionSpecifier_Noreturn) {
+        printDebug("noreturn\n");
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printAlignmentSpecifier(AlignmentSpecifier align, uint64_t indent) {
+    printIndent(indent);
+    if (align.type == AlignmentSpecifier_TypeName) {
+        printDebug("Align specifier type name\n");
+        printTypeName(align.typeName, indent + BaseIndent);
+    }
+    else if (align.type == AlignmentSpecifier_Constant) {
+        printDebug("Align specifier constant\n");
+        printConditionalExpr(align.constant, indent + BaseIndent);
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printDeclarationSpecifier(DeclarationSpecifier decl, uint64_t indent) {
+    switch (decl.type) {
+        case DeclarationSpecifier_StorageClass: {
+            printStorageClassSpecifier(decl.storageClass, indent);
+            break;
+        }
+        case DeclarationSpecifier_Type: {
+            printTypeSpecifier(decl.typeSpecifier, indent);
+            break;
+        }
+        case DeclarationSpecifier_TypeQualifier: {
+            printTypeQualifier(decl.typeQualifier, indent);
+            break;
+        }
+        case DeclarationSpecifier_Func: {
+            printFunctionSpecifier(decl.function, indent);
+            break;
+        }
+        case DeclarationSpecifier_Alignment: {
+            printAlignmentSpecifier(decl.alignment, indent);
+            break;
+        }
+        default: {
+            assert(false);
+            break;
+        }
+    }
+}
+
+void printDeclarationSpecifierList(DeclarationSpecifierList list, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Declaration Specifier List: %ld\n", list.numSpecifiers);
+    for (size_t i = 0; i < list.numSpecifiers; i++) {
+        printDeclarationSpecifier(list.specifiers[i], indent + BaseIndent);
+    }
+}
+
+void printInitDeclarator(InitDeclarator init, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Init Declarator\n");
+    printDeclarator(init.decl, indent + BaseIndent);
+    if (init.hasInitializer)
+        printInitializer(init.initializer, indent + BaseIndent);
+}
+
+void printInitDeclaratorList(InitDeclaratorList list, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Init declarator list: %lu\n", list.numInitDeclarators);
+    for (size_t i = 0; i < list.numInitDeclarators; i++) {
+        printInitDeclarator(list.initDeclarators[i], indent + BaseIndent);
+    }
+}
+
+void printDeclaration(Declaration decl, uint64_t indent) {
+    if (decl.type == Declaration_StaticAssert) {
+        printStaticAssertDeclaration(decl.staticAssert, indent);
+    }
+    else if (decl.type == Declaration_Normal) {
+        printIndent(indent);
+        printDebug("Decl:\n");
+        printDeclarationSpecifierList(decl.declSpecifiers, indent + BaseIndent);
+        if (decl.hasInitDeclaratorList) {
+            printInitDeclaratorList(decl.initDeclaratorList, indent + BaseIndent);
+        }
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printLabeledStatement(LabeledStatement label, uint64_t indent) {
+    printIndent(indent);
+    switch (label.type) {
+        case LabeledStatement_Ident: {
+            printDebug("Label: %s\n", label.ident);
+            break;
+        }
+        case LabeledStatement_Case: {
+            printDebug("case\n");
+            printConditionalExpr(label.caseConstExpr);
+            break;
+        }
+        case LabeledStatement_Default: {
+            printDebug("default\n");
+            break;
+        }
+        default: {
+            assert(false);
+            break;
+        }
+    }
+}
+
+void printSelectionStatement(SelectionStatement sel, uint64_t indent) {
+    printIndent(indent);
+    switch (sel.type) {
+        case SelectionStatement_If: {
+            printDebug("if\n");
+            printExpr(*(sel.ifExpr), indent + BaseIndent);
+            printStatement(*(sel.ifTrueStmt), indent + BaseIndent);
+
+            if (sel.ifHasElse) {
+                printIndent(indent);
+                printDebug("else\n");
+                printStatement(*(sel.ifFalseStmt), indent + BaseIndent);
+            }
+
+            break;
+        }
+        case SelectionStatement_Switch: {
+            printDebug("switch\n");
+            printExpr(sel.switchExpr, indent + BaseIndent);
+            printStatement(*(sel.switchStmt), indent + BaseIndent);
+            break;
+        }
+        default: {
+            assert(false);
+            break;
+        }
+    }
+}
+
+void printExpressionStatement(ExpressionStatement expr, uint64_t indent) {
+    if (expr.isEmpty) {
+        printIndent(indent);
+        printDebug(";\n");
+    }
+    else {
+        printExpr(expr.expr, indent);
+    }
+}
+
+void printIterationStatement(IterationStatement iter, uint64_t indent) {
+    printIndent(indent);
+    switch (iter.type) {
+        case IterationStatement_While: {
+            printDebug("while\n");
+            printExpr(iter.whileExpr, indent + BaseIndent);
+            printStatement(iter.whileStmt, indent + BaseIndent);
+            break;
+        }
+        case IterationStatement_DoWhile: {
+            printDebug("do while\n");
+            printStatement(iter.doStmt, indent + BaseIndent);
+            printExpr(iter.doExpr, indent + BaseIndent);
+            break;
+        }
+        case IterationStatement_For: {
+            printDebug("for\n");
+            if (iter.forHasInitialDeclaration)
+                printDeclaration(iter.forInitialDeclaration, indent + BaseIndent);
+            else
+                printExpressionStatement(iter.forInitialExprStmt, indent + BaseIndent);
+            
+            printExpressionStatement(iter.forInnerExprStmt, indent + BaseIndent);   
+
+            if (iter.forHasFinalExpr)
+                printExpr(iter.forFinalExpr, indent + BaseIndent);
+
+            printStatement(*(iter.forStmt), indent + BaseIndent);
+
+            break;
+        }
+        default: {
+            assert(false);
+            break;
+        }
+    }
+}
+
+void printJumpStatement(JumpStatement jump, uint64_t indent) {
+    printIndent(indent);
+    switch (jump.type) {
+        case JumpStatement_Goto: {
+            printDebug("goto %s\n", jump.gotoIdent);
+            break;
+        }
+        case JumpStatement_Continue: {
+            printDebug("continue\n");
+            break;
+        }
+        case JumpStatement_Break: {
+            printDebug("break\n");
+            break;
+        }
+        case JumpStatement_Return: {
+            printDebug("return\n");
+            
+            if (jump.returnHasExpr) {
+                printExpr(jump.returnExpr, indent + BaseIndent);
+            }
+
+            break;
+        }
+        default: {
+            assert(false);
+            break;
+        }
+    }
+}
+
+void printStatement(Statement stmt, uint64_t indent) {
+    switch (stmt.type) {
+        case Statement_Labeled: {
+            printLabeledStatement(stmt.labeled, indent);
+            break;
+        }
+        case Statement_Compound: {
+            printCompoundStatement(stmt.compound, indent);
+            break;
+        }
+        case Statement_Expression: {
+            printExpressionStatement(stmt.expression, indent);
+            break;
+        }
+        case Statement_Selection: {
+            printSelectionStatement(stmt.selection, indent);
+            break;
+        }
+        case Statement_Iteration: {
+            printIterationStatement(stmt.iteration, indent);
+            break;
+        }
+        case Statement_Jump: {
+            printJumpStatement(stmt.jump, indent);
+            break;
+        }
+        default: {
+            assert(false);
+            break;
+        }
+    }
+}
+
+void printBlockItem(BlockItem item, uint64_t indent) {
+    if (item.type == BlockItem_Declaration) {
+        printDeclaration(item.decl, indent);
+    }
+    else if (item.type == BlockItem_Statement) {
+        printStatement(item.stmt);
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printBlockItemList(BlockItemList list, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Block Item List: %lu\n", list.numBlockItems);
+
+    for (size_t i = 0; i < list.numBlockItems; i++) {
+        printBlockItemIndent(list.blockItems[i], indent + BaseIndent);
+    }
+}
+
+void printCompoundStmt(CompoundStmt stmt, uint64_t indent) {
+    if (stmt.isEmpty) {
+        printIndent(indent);
+        printDebug("{ }\n");
+    }
+    else {
+        printIndent(indent);
+        printDebug("{\n")
+
+        printBlockItemList(stmt.blockItemList, indent + BaseIndent);
+    
+        printIndent(indent);
+        printDebug("}\n");
+    }
+}
+
+void printFuncDef(FuncDef def, uint64_t indent) {
+    printIndent(indent);
+    printDebug("FuncDef:\n");
+
+    uint64_t newIndent = indent + BaseIndent;
+    printDeclarationSpecifierList(def.specifiers, newIndent);
+    printDeclarator(def.declarator, newIndent);
+    
+    printIndent(newIndent);
+    printDebug("Declarations: %ld\n", def.numDeclarations);
+
+    for (uint64_t i = 0; i < def.numDeclarations; i++) {
+        printDeclaration(def.declarations[i], newIndent + BaseIndent);
+    }
+
+    printCompoundStmt(def.stmt, newIndent);
+}
+
+void printExternalDecl(ExternalDecl decl, uint64_t indent) {
+    if (decl.type == ExternalDecl_FuncDef)
+        printFuncDef(decl.func, indent);
+    else if (decl.type == ExternalDecl_Decl)
+        printDeclaration(decl.decl, indent);
+    else {
+        assert(false);
+    }
+}
+
+void printTranslationUnit(TranslationUnit translationUnit) {
+    printDebug("Translation Unit:\n");
+
+    for (uint64_t i = 0; i < translationUnit.numDecls; i++) {
+        printExternalDecl(translationUnit.decls[i], BaseIndent);
     }
 }

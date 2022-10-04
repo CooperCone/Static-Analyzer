@@ -70,7 +70,6 @@ int main(int argc, char **argv) {
 
         // Lex file
         TokenList tokens = {0};
-
         if (!lexFile(fileBuff, &tokens)) {
             continue;
         }
@@ -79,9 +78,16 @@ int main(int argc, char **argv) {
         printDebug("\n");
 
         // Parse tokens
+        TranslationUnit unit = {0};
+        if (!parseTokens(&tokens, &unit)) {
+            continue;
+        }
 
+        printTranslationUnit(unit);
+        printDebug("\n");
 
         // Run all rules
+#if 0
         RuleContext context = {
             .fileName = argv[i],
             .tokens = tokens
@@ -90,5 +96,7 @@ int main(int argc, char **argv) {
         for (uint64_t i = 0; i < g_rulesCount; i++) {
             g_rules[i].validator(g_rules[i], context);
         }
+#endif
+
     }
 }

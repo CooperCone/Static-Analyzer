@@ -528,7 +528,7 @@ typedef enum {
 typedef struct {
     StructDeclarationType type;
     union {
-        StaticAssertDeclaration staticAsset;
+        StaticAssertDeclaration staticAssert;
         struct {
             SpecifierQualifierList normalSpecifierQualifiers;
             bool normalHasStructDeclaratorList;
@@ -837,3 +837,5 @@ typedef struct {
 
 bool parseTokens(TokenList *tokens,
     TranslationUnit *outTranslationUnit);
+
+void printTranslationUnit(TranslationUnit translationUnit);

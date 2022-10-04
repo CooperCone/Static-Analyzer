@@ -69,6 +69,9 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
             tok.comment = commentStr;
 
             col += commentLength;
+
+            // FIXME: Do we need to keep comments?
+            continue;
         }
 
         // Whitespace
@@ -81,6 +84,9 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
 
             line++;
             col = 1;
+
+            // FIXME: We still need a way to keep track of new lines
+            continue;
         }
         else if (isspace(peek(buff))) {
             size_t whitespaceLen = 1;
@@ -99,6 +105,9 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
             tok.whitespace = whitespace;
 
             col += whitespaceLen;
+
+            // FIXME: How should we process whitespace?
+            continue;
         }
 
         // Types
@@ -290,12 +299,44 @@ void printTokens(TokenList tokens) {
             printDebug("Character: %c\n", tok.type);
         }
 
-        printableKeyword(return)
         printableKeyword(auto)
+        printableKeyword(break)
+        printableKeyword(case)
+        printableKeyword(const)
+        printableKeyword(continue)
+        printableKeyword(default)
+        printableKeyword(do)
+        printableKeyword(else)
+        printableKeyword(enum)
+        printableKeyword(extern)
+        printableKeyword(for)
+        printableKeyword(goto)
+        printableKeyword(if)
+        printableKeyword(inline)
         printableKeyword(register)
+        printableKeyword(restrict)
+        printableKeyword(return)
+        printableKeyword(sizeof)
+        printableKeyword(static)
+        printableKeyword(struct)
+        printableKeyword(switch)
+        printableKeyword(typedef)
+        printableKeyword(union)
+        printableKeyword(volatile)
+        printableKeyword(while)
 
-        printableKeyword(int)
+        printableKeyword(void)
         printableKeyword(char)
+        printableKeyword(short)
+        printableKeyword(int)
+        printableKeyword(long)
+        printableKeyword(float)
+        printableKeyword(double)
+        printableKeyword(signed)
+        printableKeyword(unsigned)
+        printableKeyword(bool)
+        printableKeyword(complex)
+        printableKeyword(imaginary)
 
         else if (tok.type == Token_Ident) {
             printDebug("Ident: %s\n", tok.ident);
