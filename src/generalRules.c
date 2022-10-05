@@ -22,73 +22,69 @@ void rule_1_2_a(Rule rule, RuleContext context) {
 
 // Verifies braces on own line and closing brace in same column
 void rule_1_3_b(Rule rule, RuleContext context) {
-    // uint64_t *braceStack = NULL;
-    // uint64_t stackSize = 0;
+    uint64_t *braceStack = NULL;
+    uint64_t stackSize = 0;
 
-    // Token *tokens = context.tokens.tokens;
+    Token *tokens = context.tokens.tokens;
 
-    // for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
-    //     Token tok = tokens[i];
+    for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
+        Token tok = tokens[i];
 
-    //     if (tok.type != '{' && tok.type != '}')
-    //         continue;
+        if (tok.type != '{' && tok.type != '}')
+            continue;
 
-    //     // FIXME: These two are very similar, could probably be simplified
-    //     // Check if anything else before brace
-    //     if (i != 0) {
-    //         int64_t prevIdx = i - 1;
-    //         while (prevIdx >= 0 && tokens[prevIdx].type != Token_NewLine) {
-    //             // Only allowed to be whitespace or comments
-    //             if (tokens[prevIdx].type != Token_Whitespace &&
-    //                 tokens[prevIdx].type != Token_Comment)
-    //             {
-    //                 reportRuleViolation(rule.name,
-    //                     "Braces must not have anything before them",
-    //                     context.fileName, tok.line);
-    //                 break;
-    //             }
-    //             prevIdx--;
-    //         }
-    //     }
+        // FIXME: These two are very similar, could probably be simplified
+        // Check if anything else before brace
+        if (i != 0) {
+            int64_t prevIdx = i - 1;
+            while (prevIdx >= 0 && tokens[prevIdx].line == tok.line) {
+                // Only allowed to be whitespace or comments
+                if (tokens[prevIdx].type != Token_Comment) {
+                    reportRuleViolation(rule.name,
+                        "Braces must not have anything before them",
+                        context.fileName, tok.line);
+                    break;
+                }
+                prevIdx--;
+            }
+        }
 
-    //     // Check if anything after brace
-    //     if (i != context.tokens.numTokens) {
-    //         int64_t postIdx = i + 1;
-    //         while (postIdx < context.tokens.numTokens &&
-    //                tokens[postIdx].type != Token_NewLine)
-    //         {
-    //             // Only allowed to be whitespace or comments
-    //             if (tokens[postIdx].type != Token_Whitespace &&
-    //                 tokens[postIdx].type != Token_Comment)
-    //             {
-    //                 reportRuleViolation(rule.name,
-    //                     "Braces must not have anything after them",
-    //                     context.fileName, tok.line);
-    //                 break;
-    //             }
-    //             postIdx++;
-    //         }
-    //     }
+        // Check if anything after brace
+        if (i != context.tokens.numTokens) {
+            int64_t postIdx = i + 1;
+            while (postIdx < context.tokens.numTokens &&
+                tokens[postIdx].line == tok.line)
+            {
+                // Only allowed to be whitespace or comments
+                if (tokens[postIdx].type != Token_Comment) {
+                    reportRuleViolation(rule.name,
+                        "Braces must not have anything after them",
+                        context.fileName, tok.line);
+                    break;
+                }
+                postIdx++;
+            }
+        }
 
-    //     // Add to stack
-    //     if (tok.type == '{') {
-    //         stackSize++;
-    //         braceStack = realloc(braceStack, sizeof(uint64_t) * stackSize);
-    //         braceStack[stackSize - 1] = tok.col;
-    //     }
+        // Add to stack
+        if (tok.type == '{') {
+            stackSize++;
+            braceStack = realloc(braceStack, sizeof(uint64_t) * stackSize);
+            braceStack[stackSize - 1] = tok.col;
+        }
 
-    //     // Pop from stack and verify same column
-    //     else if (tok.type == '}') {
-    //         stackSize--;
-    //         uint64_t openColumn = braceStack[stackSize];
+        // Pop from stack and verify same column
+        else if (tok.type == '}') {
+            stackSize--;
+            uint64_t openColumn = braceStack[stackSize];
 
-    //         if (openColumn != tok.col) {
-    //             reportRuleViolation(rule.name,
-    //                 "Closing braces must be on the same column as their opening",
-    //                 context.fileName, tok.line);
-    //         }
-    //     }
-    // }
+            if (openColumn != tok.col) {
+                reportRuleViolation(rule.name,
+                    "Closing braces must be on the same column as their opening",
+                    context.fileName, tok.line);
+            }
+        }
+    }
 }
 
 // Verifies no single letter variable names
