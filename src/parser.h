@@ -14,6 +14,8 @@ enum TypeQualifier;
 struct TypeSpecifier;
 struct AbstractDeclarator;
 struct Declarator;
+struct Statement;
+struct CompoundStmt;
 
 typedef enum {
     Designator_Constant,
@@ -52,7 +54,7 @@ typedef struct {
     Initializer initializer;
 } DesignationAndInitializer;
 
-typedef struct {
+typedef struct InitializerList {
     size_t numInitializers;
     DesignationAndInitializer *initializers;
 } InitializerList;
@@ -351,7 +353,7 @@ typedef struct AssignExpr {
     ConditionalExpr rightExpr;
 } AssignExpr;
 
-typedef struct {
+typedef struct Expr {
     size_t numExprs;
     AssignExpr *exprs;
 } Expr;
@@ -420,6 +422,17 @@ typedef struct AbstractDeclarator {
     DirectAbstractDeclarator directAbstractDeclarator;
 } AbstractDeclarator;
 
+typedef struct {
+    size_t numIdents;
+    char **idents;
+} IdentifierList;
+
+typedef enum {
+    PostDirectDeclaratorParen_Empty,
+    PostDirectDeclaratorParen_IdentList,
+    PostDirectDeclaratorParen_ParamTypelist,
+} PostDirectDeclaratorParenType;
+
 typedef enum {
     PostDirectDeclarator_Paren,
     PostDirectDeclarator_Bracket,
@@ -444,8 +457,11 @@ typedef struct {
             AssignExpr bracketAssignExpr;
         };
         struct {
-            size_t parenNumIdents;
-            char **parenIdents;
+            PostDirectDeclaratorParenType parenType;
+            union {
+                IdentifierList parenIdentList;
+                ParameterTypeList parenParamTypeList;
+            };
         };
     };
 } PostDirectDeclarator;
@@ -497,7 +513,7 @@ typedef struct {
     SpecifierQualifier *specifierQualifiers;
 } SpecifierQualifierList;
 
-typedef struct {
+typedef struct TypeName {
     SpecifierQualifierList specifierQualifiers;
     bool hasAbstractDeclarator;
     AbstractDeclarator abstractDeclarator;
@@ -588,7 +604,7 @@ typedef enum {
     TypeSpecifier_TypedefName,
 } TypeSpecifierType;
 
-typedef struct {
+typedef struct TypeSpecifier {
     TypeSpecifierType type;
     union {
         TypeName atomicName;
@@ -644,7 +660,7 @@ typedef struct {
     };
 } DeclarationSpecifier;
 
-typedef struct {
+typedef struct DeclarationSpecifierList {
     size_t numSpecifiers;
     DeclarationSpecifier *specifiers;
 } DeclarationSpecifierList;
@@ -774,11 +790,11 @@ typedef enum {
     Statement_Jump,
 } StatementType;
 
-typedef struct {
+typedef struct Statement {
     StatementType type;
     union {
         LabeledStatement labeled;
-        struct CompoundStatement *compound;
+        struct CompoundStmt *compound;
         SelectionStatement selection;
         IterationStatement iteration;
         JumpStatement jump;
@@ -804,7 +820,7 @@ typedef struct {
     BlockItem *blockItems;
 } BlockItemList;
 
-typedef struct {
+typedef struct CompoundStmt {
     bool isEmpty;
     BlockItemList blockItemList;
 } CompoundStmt;

@@ -1174,8 +1174,9 @@ ParseRes parseAssignExpr(TokenList *tokens, AssignExpr *assignExpr) {
 
         AssignOp op = {0};
         assignRes = parseAssignOp(tokens, &op);
-        if (!res.success) {
+        if (!assignRes.success) {
             tokens->pos = preAssignPos;
+            break;
         }
 
         AssignPrefix leftExpr = { unaryExpr, op };
@@ -1288,6 +1289,8 @@ ParseRes parseParameterTypeList(TokenList *tokens, ParameterTypeList *list) {
         hasComma = consumeIfTok(tokens, ',');
 
     } while(hasComma);
+
+    return (ParseRes){ .success = true };
 }
 
 ParseRes parsePostDirectAbstractDeclarator(TokenList *tokens,
@@ -1417,6 +1420,8 @@ PostDirectAbstractDeclarator_Paren:
 
     postDeclarator->type = PostDirectAbstractDeclarator_Paren;
     postDeclarator->parenParamList = paramList;
+
+    return (ParseRes){ .success = true };
 }
 
 ParseRes parseDirectAbstractDeclarator(TokenList *tokens,
@@ -1577,6 +1582,23 @@ ParseRes parseAbstractDeclarator(TokenList *tokens,
     return (ParseRes) { .success = true };
 }
 
+ParseRes parseIdentifierList(TokenList *tokens, IdentifierList *list) {
+    bool hasComma = false;
+    do {
+        if (peekTok(tokens).type != Token_Ident) {
+            break;
+        }
+
+        Token tok = consumeTok(tokens);
+        ArrayAppend(list->idents, list->numIdents, tok.ident);
+
+        hasComma = consumeIfTok(tokens, Token_Ident);
+
+    } while (hasComma);
+
+    return (ParseRes){ .success = true };
+}
+
 ParseRes parsePostDirectDeclarator(TokenList *tokens, PostDirectDeclarator *postDeclarator) {
     // Parse Bracket
     if (consumeIfTok(tokens, '[')) {
@@ -1684,29 +1706,56 @@ ParseRes parsePostDirectDeclarator(TokenList *tokens, PostDirectDeclarator *post
     // Parse Paren
     if (consumeIfTok(tokens, '(')) {
 
+        postDeclarator->type = PostDirectDeclarator_Paren;
+
         // Empty paren early terminate
         if (consumeIfTok(tokens, ')')) {
-            postDeclarator->parenNumIdents = 0;
+            postDeclarator->parenType = PostDirectDeclaratorParen_Empty;
         }
-
-        bool hasComma = false;
-        do {
-            Token tok = peekTok(tokens);
-            if (!consumeIfTok(tokens, Token_Ident)) {
+        else if (peekTok(tokens).type == Token_Ident) {
+            IdentifierList identList = {0};
+            ParseRes identRes = parseIdentifierList(tokens, &identList);
+            if (!identRes.success) {
                 return (ParseRes) {
                     .success = false,
-                    .failMessage = "Expected identifier in identifier list in post direct declarator"
+                    .failMessage = "Expected identifier list after ( in direct declarator"
                 };
             }
 
-            ArrayAppend(postDeclarator->parenIdents,
-                postDeclarator->parenNumIdents,
-                tok.ident);
+            postDeclarator->parenType = PostDirectDeclaratorParen_IdentList;
+            postDeclarator->parenIdentList = identList;
 
-            hasComma = consumeIfTok(tokens, ',');
-        } while (hasComma);
-    
-        return (ParseRes) { .success = true };
+            if (!consumeIfTok(tokens, ')')) {
+                return (ParseRes) {
+                    .success = false,
+                    .failMessage = "Expected ) after identifier list"
+                };
+            }
+
+            return (ParseRes){ .success = true };
+        }
+        else {
+            ParameterTypeList paramList = {0};
+            ParseRes paramRes = parseParameterTypeList(tokens, &paramList);
+            if (!paramRes.success) {
+                return (ParseRes) {
+                    .success = false,
+                    .failMessage = "Expected param type list after ( in direct declarator"
+                };
+            }
+
+            postDeclarator->parenType = PostDirectDeclaratorParen_ParamTypelist;
+            postDeclarator->parenParamTypeList = paramList;
+
+            if (!consumeIfTok(tokens, ')')) {
+                return (ParseRes) {
+                    .success = false,
+                    .failMessage = "Expected ) after parameter type list"
+                };
+            }
+
+            return (ParseRes){ .success = true };
+        }
     }
 
     return (ParseRes) {
@@ -2046,7 +2095,7 @@ ParseRes parseStructDeclaration(TokenList *tokens, StructDeclaration *declaratio
             return staticRes;
         
         declaration->type = StructDeclaration_StaticAssert;
-        declaration->staticAsset = staticAssert;
+        declaration->staticAssert = staticAssert;
 
         return (ParseRes){ .success = true };
     }
@@ -2310,9 +2359,9 @@ PostAtomicType:
 
     tokens->pos = pos;
 
-    // Parse typedef nam
+    // Parse typedef name
     // FIXME: Keep Track of which names are typedefed
-    assert(false);
+    // assert(false);
 
     return fail;
 }
@@ -2340,6 +2389,49 @@ ParseRes parseAlignmentSpecifier(TokenList *tokens, AlignmentSpecifier *alignmen
             .failMessage = "Alignment specifier expected an alignas keyword"
         };
     }
+
+    if (!consumeIfTok(tokens, '(')) {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Alignment specifier requires a ( after alignas"
+        };
+    }
+
+    size_t pos = tokens->pos;
+
+    TypeName typeName = {0};
+    if (parseTypeName(tokens, &typeName).success) {
+        if (!consumeIfTok(tokens, ')')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Alignment specifier requires a ) after type name"
+            };
+        }
+        
+        alignment->type = AlignmentSpecifier_TypeName;
+        alignment->typeName = typeName;
+        return (ParseRes){ .success = true };
+    }
+
+    tokens->pos = pos;
+
+    ConditionalExpr expr = {0};
+    if (parseConditionalExpr(tokens, &expr).success) {
+        if (!consumeIfTok(tokens, ')')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Alignment specifier requires a ) after constant expr"
+            };
+        }
+
+        alignment->type = AlignmentSpecifier_Constant;
+        alignment->constant = expr;
+    }
+
+    return (ParseRes){
+        .success = false,
+        .failMessage = "Alignment specifier need a constant expr or type name"
+    };
 }
 
 ParseRes parseDeclarationSpecifier(TokenList *tokens,
@@ -2427,7 +2519,22 @@ ParseRes parseDeclarationSpecifierList(TokenList *tokens,
 ParseRes parseInitDeclarator(TokenList *tokens, InitDeclarator *initDeclarator) {
     Declarator decl = {0};
     ParseRes declaratorRes = parseDeclarator(tokens, &decl);
-    
+    if (!declaratorRes.success)
+        return declaratorRes;
+
+    initDeclarator->decl = decl;
+
+    if (consumeIfTok(tokens, '=')) {
+        Initializer init = {0};
+        ParseRes initRes = parseInitializer(tokens, &init);
+        if (!initRes.success)
+            return initRes;
+
+        initDeclarator->hasInitializer = true;
+        initDeclarator->initializer = init;
+    }
+
+    return (ParseRes) { .success = true };
 }
 
 ParseRes parseInitDeclaratorList(TokenList *tokens, InitDeclaratorList *initList) {
@@ -2891,6 +2998,13 @@ ParseRes parseJumpStatement(TokenList *tokens, JumpStatement *jump) {
         if (!exprRes.success)
             return exprRes;
 
+        if (!consumeIfTok(tokens, ';')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ; after return expr"
+            };
+        }
+
         jump->returnHasExpr = true;
         jump->returnExpr = expr;
 
@@ -3044,6 +3158,13 @@ ParseRes parseCompoundStmt(TokenList *tokens, CompoundStmt *outStmt) {
     if (!listRes.success)
         return listRes;
 
+    if (!consumeIfTok(tokens, '}')) {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expected } after block item list in compound stmt"
+        };
+    }
+
     outStmt->isEmpty = false;
     outStmt->blockItemList = list;
     return (ParseRes){ .success = true };
@@ -3132,16 +3253,424 @@ bool parseTokens(TokenList *tokens, TranslationUnit *outUnit) {
         ParseRes res = parseExternalDecl(tokens, &decl);
         if (!res.success) {
             printf("Error: %s\n", res.failMessage);
+            return false;
         }
         ArrayAppend(outUnit->decls, outUnit->numDecls, decl);
     }
+
+    return true;
 }
 
 #define BaseIndent 2
 
+void printConditionalExpr(ConditionalExpr expr, uint64_t indent);
+void printInitializer(Initializer init, uint64_t indent);
+void printAssignExpr(AssignExpr expr, uint64_t indent);
+void printInitializerList(InitializerList list, uint64_t indent);
+void printTypeName(TypeName type, uint64_t indent);
+void printExpr(Expr expr, uint64_t indent);
+void printCastExpr(CastExpr expr, uint64_t indent);
+void printDeclarationSpecifierList(DeclarationSpecifierList list, uint64_t indent);
+void printDeclarator(Declarator decl, uint64_t indent);
+void printAbstractDeclarator(AbstractDeclarator decl, uint64_t indent);
+void printTypeQualifier(TypeQualifier type, uint64_t indent);
+void printTypeSpecifier(TypeSpecifier type, uint64_t indent);
+void printStatement(Statement stmt, uint64_t indent);
+void printCompoundStmt(CompoundStmt stmt, uint64_t indent);
+
 void printIndent(uint64_t indent) {
     for (uint64_t i = 0; i < indent; i++)
         printDebug(" ");
+}
+
+void printDesignator(Designator designator, uint64_t indent) {
+    if (designator.type == Designator_Constant) {
+        printConditionalExpr(*(designator.constantExpr), indent);
+    }
+    else if (designator.type == Designator_Ident) {
+        printIndent(indent);
+        printDebug("%s\n", designator.ident);
+    }
+}
+
+void printDesignation(Designation desig, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Designation: %ld\n", desig.numDesignators);
+    for (size_t i = 0; i < desig.numDesignators; i++) {
+        printDesignator(desig.designators[i], indent + BaseIndent);
+    }
+}
+
+void printInitializer(Initializer init, uint64_t indent) {
+    if (init.type == Initializer_InitializerList) {
+        printInitializerList(*(init.initializerList), indent);
+    }
+    else if (init.type == Initializer_Assignment) {
+        printAssignExpr(*(init.assignmentExpr), indent);
+    }
+}
+
+void printDesignationAndInitializer(DesignationAndInitializer desig, uint64_t indent) {
+    if (desig.hasDesignation) {
+        printDesignation(desig.designation, indent);
+    }
+
+    printInitializer(desig.initializer, indent + BaseIndent);
+}
+
+void printInitializerList(InitializerList list, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Initializer List: %ld\n", list.numInitializers);
+    for (size_t i = 0; i < list.numInitializers; i++) {
+        printDesignationAndInitializer(list.initializers[i], indent + BaseIndent);
+    }
+}
+
+void printGenericAssociation(GenericAssociation assoc, uint64_t indent) {
+    if (assoc.isDefault) {
+        printIndent(indent);
+        printDebug("Default\n");
+    }
+    else {
+        printTypeName(*(assoc.typeName), indent);
+    }
+
+    printAssignExpr(*(assoc.expr), indent + BaseIndent);
+}
+
+void printGenericSelection(GenericSelection generic, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Generic (\n");
+
+    printAssignExpr(*(generic.expr), indent + BaseIndent);
+
+    printIndent(indent);
+    printDebug("Association List: %ld\n", generic.numAssociations);
+    for (size_t i = 0; i < generic.numAssociations; i++) {
+        printGenericAssociation(generic.associations[i], indent + BaseIndent);
+    }
+}
+
+void printConstantExpr(ConstantExpr expr, uint64_t indent) {
+    if (expr.type == Constant_Integer) {
+        printIndent(indent);
+        printDebug("Int: %s\n", expr.data);
+    }
+    else if (expr.type == Constant_Character) {
+        printIndent(indent);
+        printDebug("Char: %s\n", expr.data);
+    }
+    else if (expr.type == Constant_Float) {
+        printIndent(indent);
+        printDebug("Float: %s\n", expr.data);
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printPrimaryExpr(PrimaryExpr expr, uint64_t indent) {
+    if (expr.type == PrimaryExpr_Ident) {
+        printIndent(indent);
+        printDebug("Ident: %s\n", expr.ident);
+    }
+    else if (expr.type == PrimaryExpr_Constant) {
+        printConstantExpr(expr.constant, indent);
+    }
+    else if (expr.type == PrimaryExpr_String) {
+        printIndent(indent);
+        printDebug("\"%s\"\n", expr.string);
+    }
+    else if (expr.type == PrimaryExpr_FuncName) {
+        printIndent(indent);
+        printDebug("__func__\n");
+    }
+    else if (expr.type == PrimaryExpr_Expr) {
+        printIndent(indent);
+        printDebug("(\n");
+
+        printExpr(*(expr.expr), indent + BaseIndent);
+
+        printIndent(indent);
+        printDebug(")\n");
+    }
+    else if (expr.type == PrimaryExpr_GenericSelection) {
+        printGenericSelection(expr.genericSelection, indent);
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printArgExprList(ArgExprList args, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Arg Expr List: %ld\n", args.argExprLength);
+    for (size_t i = 0; i < args.argExprLength; i++) {
+        printAssignExpr(args.argExprs[i], indent + BaseIndent);
+    }
+}
+
+void printPostfixOp(PostfixOp op, uint64_t indent) {
+    if (op.type == PostfixOp_Index) {
+        printIndent(indent);
+        printDebug("[\n");
+
+        printExpr(*(op.indexExpr), indent + BaseIndent);
+
+        printIndent(indent);
+        printDebug("]\n");
+    }
+    else if (op.type == PostfixOp_Call) {
+        if (op.callHasEmptyArgs) {
+            printIndent(indent);
+            printDebug("( )\n");
+        }
+        else {
+            printIndent(indent);
+            printDebug("(\n");
+
+            printArgExprList(op.callExprs, indent + BaseIndent);
+
+            printIndent(indent);
+            printDebug(")\n");
+        }
+    }
+    else if (op.type == PostfixOp_Dot) {
+        printIndent(indent);
+        printDebug(".%s\n", op.dotIdent);
+    }
+    else if (op.type == PostfixOp_Arrow) {
+        printIndent(indent);
+        printDebug("->%s\n", op.arrowIdent);
+    }
+    else if (op.type == PostfixOp_Inc) {
+        printIndent(indent);
+        printDebug("++\n");
+    }
+    else if (op.type == PostfixOp_Dec) {
+        printIndent(indent);
+        printDebug("--\n");
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printPostfixExpr(PostfixExpr expr, uint64_t indent) {
+    if (expr.type == Postfix_Primary) {
+        printPrimaryExpr(expr.primary, indent);
+    }
+    else if (expr.type == Postfix_InitializerList) {
+        printInitializerList(expr.initializerList, indent);
+    }
+    else {
+        assert(false);
+    }
+
+    for (size_t i = 0; i < expr.numPostfixOps; i++) {
+        printPostfixOp(expr.postfixOps[i], indent);
+    }
+}
+
+void printUnaryPrefixCastType(UnaryPrefixCastType type, uint64_t indent) {
+    if (type == UnaryPrefixCast_And) {
+        printIndent(indent);
+        printDebug("&\n");
+    }
+    else if (type == UnaryPrefixCast_Star) {
+        printIndent(indent);
+        printDebug("*\n");
+    }
+    else if (type == UnaryPrefixCast_Plus) {
+        printIndent(indent);
+        printDebug("+\n");
+    }
+    else if (type == UnaryPrefixCast_Minus) {
+        printIndent(indent);
+        printDebug("-\n");
+    }
+    else if (type == UnaryPrefixCast_Tilde) {
+        printIndent(indent);
+        printDebug("~\n");
+    }
+    else if (type == UnaryPrefixCast_Not) {
+        printIndent(indent);
+        printDebug("!\n");
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printUnaryExprPrefix(UnaryExprPrefix prefix, uint64_t indent) {
+    if (prefix.type == UnaryPrefix_Inc) {
+        printIndent(indent);
+        printDebug("++\n");
+    }
+    else if (prefix.type == UnaryPrefix_Dec) {
+        printIndent(indent);
+        printDebug("--\n");
+    }
+    else if (prefix.type == UnaryPrefix_Sizeof) {
+        printIndent(indent);
+        printDebug("sizeof\n");
+    }
+    else if (prefix.type == UnaryPrefix_Cast) {
+        printUnaryPrefixCastType(prefix.castType, indent);
+        printCastExpr(*(prefix.castExpr), indent);
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printUnaryExpr(UnaryExpr expr, uint64_t indent) {
+    for (size_t i = 0; i < expr.numPrefixes; i++) {
+        printUnaryExprPrefix(expr.prefixes[i], indent);
+    }
+
+    if (expr.type == UnaryExpr_Postfix) {
+        printPostfixExpr(expr.expr, indent);
+    }
+    else if (expr.type == UnaryExpr_Sizeof) {
+        printIndent(indent);
+        printDebug("sizeof\n");
+        printTypeName(*(expr.sizeofType), indent + BaseIndent);
+    }
+    else if (expr.type == UnaryExpr_Alignof) {
+        printIndent(indent);
+        printDebug("alignof\n");
+        printTypeName(*(expr.sizeofType), indent + BaseIndent);
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printCastExpr(CastExpr cast, uint64_t indent) {
+    if (cast.type == CastExpr_Unary) {
+        printUnaryExpr(cast.unary, indent);
+    }
+    else if (cast.type == CastExpr_Cast) {
+        printIndent(indent);
+        printDebug("Cast: (\n");
+        printTypeName(*(cast.castType), indent + BaseIndent);
+
+        printIndent(indent);
+        printDebug(")\n");
+        printCastExpr(*(cast.castExpr), indent + BaseIndent);
+    }
+    else {
+        assert(false);
+    }
+}
+
+void printMultiplicativeExpr(MultiplicativeExpr expr, uint64_t indent) {
+    printCastExpr(expr.baseExpr, indent);
+    for (size_t i = 0; i < expr.numPostExprs; i++) {
+        printIndent(indent + BaseIndent);
+
+        if (expr.postExprs[i].op == Multiplicative_Mul) {
+            printDebug("*\n");
+        }
+        else if (expr.postExprs[i].op == Multiplicative_Div) {
+            printDebug("/\n");
+        }
+        else if (expr.postExprs[i].op == Multiplicative_Mod) {
+            printDebug("%%\n");
+        }
+        else {
+            assert(false);
+        }
+        printCastExpr(expr.postExprs[i].expr, indent + BaseIndent);
+    }
+}
+
+// FIXME: Fix the way we print out binary exprs.
+// Currently, we print the left side without knowing if there
+// is an operation
+void printAdditiveExpr(AdditiveExpr expr, uint64_t indent) {
+    printMultiplicativeExpr(expr.baseExpr, indent);
+    for (size_t i = 0; i < expr.numPostExprs; i++) {
+        printIndent(indent + BaseIndent);
+
+        if (expr.postExprs[i].op == Additive_Add) {
+            printDebug("+\n");
+        }
+        else if (expr.postExprs[i].op == Additive_Sub) {
+            printDebug("-\n");
+        }
+        else {
+            assert(false);
+        }
+        printMultiplicativeExpr(expr.postExprs[i].expr, indent + BaseIndent);
+    }
+}
+
+void printShiftExpr(ShiftExpr expr, uint64_t indent) {
+    printAdditiveExpr(expr.baseExpr, indent);
+    for (size_t i = 0; i < expr.numPostExprs; i++) {
+        if (i != expr.numPostExprs - 1) {
+            printIndent(indent + BaseIndent);
+
+            if (expr.postExprs[i].op == Shift_Left) {
+                printDebug("<<\n");
+            }
+            else if (expr.postExprs[i].op == Shift_Right) {
+                printDebug(">>\n");
+            }
+            else {
+                assert(false);
+            }
+        }
+        printAdditiveExpr(expr.postExprs[i].expr, indent + BaseIndent);
+    }
+}
+
+void printRelationalExpr(RelationalExpr expr, uint64_t indent) {
+    printShiftExpr(expr.baseExpr, indent);
+    for (size_t i = 0; i < expr.numPostExprs; i++) {
+        if (i != expr.numPostExprs - 1) {
+            printIndent(indent + BaseIndent);
+
+            if (expr.postExprs[i].op == Relational_Lt) {
+                printDebug("<\n");
+            }
+            else if (expr.postExprs[i].op == Relational_Gt) {
+                printDebug(">\n");
+            }
+            else if (expr.postExprs[i].op == Relational_LEq) {
+                printDebug("<=\n");
+            }
+            else if (expr.postExprs[i].op == Relational_GEq) {
+                printDebug(">=\n");
+            }
+            else {
+                assert(false);
+            }
+        }
+        printShiftExpr(expr.postExprs[i].expr, indent + BaseIndent);
+    }
+}
+
+void printEqualityExpr(EqualityExpr expr, uint64_t indent) {
+    printRelationalExpr(expr.baseExpr, indent);
+    for (size_t i = 0; i < expr.numPostExprs; i++) {
+        if (i != expr.numPostExprs - 1) {
+            printIndent(indent + BaseIndent);
+
+            if (expr.postExprs[i].op == Equality_Eq) {
+                printDebug("==\n");
+            }
+            else if (expr.postExprs[i].op == Equality_NEq) {
+                printDebug("!=\n");
+            }
+            else {
+                assert(false);
+            }
+        }
+        printRelationalExpr(expr.postExprs[i].expr, indent + BaseIndent);
+    }
 }
 
 void printAndExpr(AndExpr expr, uint64_t indent) {
@@ -3273,7 +3802,7 @@ void printExpr(Expr expr, uint64_t indent) {
     printIndent(indent);
     printDebug("Expr: %ld\n", expr.numExprs);
     for (size_t i = 0; i < expr.numExprs; i++) {
-        printAssignExpr(expr.exprs[i]);
+        printAssignExpr(expr.exprs[i], indent + BaseIndent);
     }
 }
 
@@ -3399,22 +3928,41 @@ void printAbstractDeclarator(AbstractDeclarator decl, uint64_t indent) {
         printDirectAbstractDeclarator(decl.directAbstractDeclarator, indent + BaseIndent);
 }
 
+void printIdentifierList(IdentifierList list, uint64_t indent) {
+    printIndent(indent);
+    printDebug("Identifier list: %ld\n", list.numIdents);
+    for (size_t i = 0; i < list.numIdents; i++) {
+        printIndent(indent + BaseIndent);
+        printDebug("%s\n", list.idents[i]);
+    }
+}
+
 void printPostDirectDeclarator(PostDirectDeclarator post, uint64_t indent) {
     if (post.type == PostDirectDeclarator_Paren) {
-        printIndent(indent);
-        if (post.parenNumIdents == 0) {
+        if (post.parenType == PostDirectDeclaratorParen_Empty) {
+            printIndent(indent);
             printDebug("( )\n");
         }
-        else {
+        else if (post.parenType == PostDirectDeclaratorParen_IdentList) {
+            printIndent(indent);
             printDebug("(\n");
 
-            for (size_t i = 0; i < post.parenNumIdents; i++) {
-                printIndent(indent + BaseIndent);
-                printDebug("%s\n", post.parenIdents[i]);
-            }
+            printIdentifierList(post.parenIdentList, indent + BaseIndent);
 
             printIndent(indent);
             printDebug(")\n");
+        }
+        else if (post.parenType == PostDirectDeclaratorParen_ParamTypelist) {
+            printIndent(indent);
+            printDebug("(\n");
+
+            printParameterTypeList(post.parenParamTypeList, indent + BaseIndent);
+
+            printIndent(indent);
+            printDebug(")\n");
+        }
+        else {
+            assert(false);
         }
     }
     else if (post.type == PostDirectDeclarator_Bracket) {
@@ -3472,10 +4020,10 @@ void printDirectDeclarator(DirectDeclarator direct, uint64_t indent) {
         assert(false);
     }
 
-    printIndent(indent + BaseIndent);
+    printIndent(indent);
     printDebug("Post Direct Declarator: %ld\n", direct.numPostDirectDeclarators);
     for (size_t i = 0; i < direct.numPostDirectDeclarators; i++) {
-        printPostDirectDeclarator(direct.postDirectDeclarators[i], indent + BaseIndent + BaseIndent);
+        printPostDirectDeclarator(direct.postDirectDeclarators[i], indent + BaseIndent);
     }
 }
 
@@ -3636,7 +4184,7 @@ void printEnumerator(Enumerator enumer, uint64_t indent) {
 void printEnumeratorList(EnumeratorList enumList, uint64_t indent) {
     printIndent(indent);
     printDebug("EnumeratorList: %lu\n", enumList.numEnumerators);
-    for (size_t i = 0; i < enumList; i++) {
+    for (size_t i = 0; i < enumList.numEnumerators; i++) {
         printEnumerator(enumList.enumerators[i], indent + BaseIndent);
     }
 }
@@ -3657,62 +4205,62 @@ void printTypeSpecifier(TypeSpecifier type, uint64_t indent) {
     switch (type.type) {
         case TypeSpecifier_Void: {
             printIndent(indent);
-            printDebug("void");
+            printDebug("void\n");
             break;
         }
         case TypeSpecifier_Char: {
             printIndent(indent);
-            printDebug("char");
+            printDebug("char\n");
             break;
         }
         case TypeSpecifier_Short: {
             printIndent(indent);
-            printDebug("short");
+            printDebug("short\n");
             break;
         }
         case TypeSpecifier_Int: {
             printIndent(indent);
-            printDebug("int");
+            printDebug("int\n");
             break;
         }
         case TypeSpecifier_Long: {
             printIndent(indent);
-            printDebug("long");
+            printDebug("long\n");
             break;
         }
         case TypeSpecifier_Float: {
             printIndent(indent);
-            printDebug("float");
+            printDebug("float\n");
             break;
         }
         case TypeSpecifier_Double: {
             printIndent(indent);
-            printDebug("double");
+            printDebug("double\n");
             break;
         }
         case TypeSpecifier_Signed: {
             printIndent(indent);
-            printDebug("signed");
+            printDebug("signed\n");
             break;
         }
         case TypeSpecifier_Unsigned: {
             printIndent(indent);
-            printDebug("unsigned");
+            printDebug("unsigned\n");
             break;
         }
         case TypeSpecifier_Bool: {
             printIndent(indent);
-            printDebug("bool");
+            printDebug("bool\n");
             break;
         }
         case TypeSpecifier_Complex: {
             printIndent(indent);
-            printDebug("complex");
+            printDebug("complex\n");
             break;
         }
         case TypeSpecifier_Imaginary: {
             printIndent(indent);
-            printDebug("imaginary");
+            printDebug("imaginary\n");
             break;
         }
         case TypeSpecifier_AtomicType: {
@@ -3881,8 +4429,8 @@ void printLabeledStatement(LabeledStatement label, uint64_t indent) {
             break;
         }
         case LabeledStatement_Case: {
-            printDebug("case\n");
-            printConditionalExpr(label.caseConstExpr);
+            printDebug("case:\n");
+            printConditionalExpr(label.caseConstExpr, indent + BaseIndent);
             break;
         }
         case LabeledStatement_Default: {
@@ -3901,7 +4449,7 @@ void printSelectionStatement(SelectionStatement sel, uint64_t indent) {
     switch (sel.type) {
         case SelectionStatement_If: {
             printDebug("if\n");
-            printExpr(*(sel.ifExpr), indent + BaseIndent);
+            printExpr(sel.ifExpr, indent + BaseIndent);
             printStatement(*(sel.ifTrueStmt), indent + BaseIndent);
 
             if (sel.ifHasElse) {
@@ -3941,12 +4489,12 @@ void printIterationStatement(IterationStatement iter, uint64_t indent) {
         case IterationStatement_While: {
             printDebug("while\n");
             printExpr(iter.whileExpr, indent + BaseIndent);
-            printStatement(iter.whileStmt, indent + BaseIndent);
+            printStatement(*(iter.whileStmt), indent + BaseIndent);
             break;
         }
         case IterationStatement_DoWhile: {
             printDebug("do while\n");
-            printStatement(iter.doStmt, indent + BaseIndent);
+            printStatement(*(iter.doStmt), indent + BaseIndent);
             printExpr(iter.doExpr, indent + BaseIndent);
             break;
         }
@@ -4011,7 +4559,7 @@ void printStatement(Statement stmt, uint64_t indent) {
             break;
         }
         case Statement_Compound: {
-            printCompoundStatement(stmt.compound, indent);
+            printCompoundStmt(*(stmt.compound), indent);
             break;
         }
         case Statement_Expression: {
@@ -4042,7 +4590,7 @@ void printBlockItem(BlockItem item, uint64_t indent) {
         printDeclaration(item.decl, indent);
     }
     else if (item.type == BlockItem_Statement) {
-        printStatement(item.stmt);
+        printStatement(item.stmt, indent);
     }
     else {
         assert(false);
@@ -4054,7 +4602,7 @@ void printBlockItemList(BlockItemList list, uint64_t indent) {
     printDebug("Block Item List: %lu\n", list.numBlockItems);
 
     for (size_t i = 0; i < list.numBlockItems; i++) {
-        printBlockItemIndent(list.blockItems[i], indent + BaseIndent);
+        printBlockItem(list.blockItems[i], indent + BaseIndent);
     }
 }
 
@@ -4065,7 +4613,7 @@ void printCompoundStmt(CompoundStmt stmt, uint64_t indent) {
     }
     else {
         printIndent(indent);
-        printDebug("{\n")
+        printDebug("{\n");
 
         printBlockItemList(stmt.blockItemList, indent + BaseIndent);
     

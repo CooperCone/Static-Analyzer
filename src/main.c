@@ -4,6 +4,7 @@
 
 #include "buffer.h"
 #include "lexer.h"
+#include "parser.h"
 #include "rule.h"
 #include "debug.h"
 #include "config.h"
@@ -57,6 +58,8 @@ int main(int argc, char **argv) {
     // TODO: Modify rules with configs
 
     for (uint64_t i = 1; i < argc; i++) {
+        // TODO: Preprocess file
+
         // Open file
         Buffer fileBuff = {0};
 
@@ -69,8 +72,9 @@ int main(int argc, char **argv) {
         printDebug("%s\n", fileBuff.bytes);
 
         // Lex file
+        LineInfo lineInfo = {0};
         TokenList tokens = {0};
-        if (!lexFile(fileBuff, &tokens)) {
+        if (!lexFile(fileBuff, &tokens, &lineInfo)) {
             continue;
         }
 
@@ -87,16 +91,15 @@ int main(int argc, char **argv) {
         printDebug("\n");
 
         // Run all rules
-#if 0
         RuleContext context = {
             .fileName = argv[i],
-            .tokens = tokens
+            .tokens = tokens,
+            .lineInfo = lineInfo,
         };
 
         for (uint64_t i = 0; i < g_rulesCount; i++) {
             g_rules[i].validator(g_rules[i], context);
         }
-#endif
 
     }
 }

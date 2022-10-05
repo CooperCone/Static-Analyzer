@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "buffer.h"
 
@@ -90,7 +91,6 @@ typedef struct {
     TokenType type;
     uint64_t line;
     uint64_t col;
-
     union {
         char *ident;
         char *whitespace;
@@ -111,5 +111,18 @@ typedef struct {
     Token *tokens;
 } TokenList;
 
-bool lexFile(Buffer buffer, TokenList *outTokens);
+typedef struct {
+    char *fileName;
+    size_t numLines;
+    uint64_t *lineLengths;
+} FileInfo;
+
+typedef struct {
+    size_t numFiles;
+    FileInfo *fileInfo;
+} LineInfo;
+
+void addLineLengthInfo(LineInfo *info, char *fileName, uint64_t line, uint64_t length);
+
+bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outInfo);
 void printTokens(TokenList tokens);

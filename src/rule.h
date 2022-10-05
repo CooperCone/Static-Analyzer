@@ -5,6 +5,7 @@
 typedef struct {
     char *fileName;
     TokenList tokens;
+    LineInfo lineInfo;
 } RuleContext;
 
 typedef struct Rule Rule;

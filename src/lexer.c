@@ -7,6 +7,38 @@
 #include <ctype.h>
 
 #include "debug.h"
+#include "array.h"
+
+void addLineLengthInfo(LineInfo *info, char *fileName, uint64_t line,
+    uint64_t length)
+{
+    FileInfo *fileInfo = NULL;
+    // Check to see if fileName exists
+    for (size_t i = 0; i < info->numFiles; i++) {
+        if (strcmp(info->fileInfo[i].fileName, fileName) == 0) {
+            fileInfo = info->fileInfo + i;
+            break;
+        }
+    }
+
+    // If not, create info and add it to line length info
+    if (fileInfo == NULL) {
+        FileInfo newInfo = {
+            .fileName = fileName
+        };
+        ArrayAppend(info->fileInfo, info->numFiles, newInfo);
+
+        fileInfo = info->fileInfo + info->numFiles - 1;
+    }
+
+    // Check if num lines are lower than current line
+    while (line > fileInfo->numLines) {
+        ArrayAppend(fileInfo->lineLengths, fileInfo->numLines, (uint64_t)0);
+    }
+
+    // Add line length
+    fileInfo->lineLengths[line - 1] = length;
+}
 
 void appendTok(TokenList *tokens, Token tok) {
     tokens->numTokens++;
@@ -34,7 +66,7 @@ void appendTok(TokenList *tokens, Token tok) {
     col += strlen(name);\
 }
 
-bool lexFile(Buffer buffer, TokenList *outTokens) {
+bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
     if (NULL == outTokens)
         return -1;
 
@@ -44,6 +76,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
 
     uint64_t line = 1;
     uint64_t col = 1;
+    char *fileName = NULL;
 
     while (buffer.pos < buffer.size) {
 
@@ -52,8 +85,57 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
         tok.col = col;
         // TODO: Should we update line and col in a better way?
 
+        // Line commands
+        if (consumeIf(buff, '#')) {
+            while (isspace(peek(buff)))
+                consume(buff);
+
+            // Parse an integer
+            uint8_t *integerStart = buffer.bytes + buffer.pos;
+            while (isdigit(peek(buff))) {
+                consume(buff);
+            }
+
+            long newLineNumber = strtol((char*)integerStart, NULL, 10);
+
+            while (isspace(peek(buff)))
+                consume(buff);
+
+            // Parse a file
+            char *newFileName = NULL;
+            if (consume(buff) == '"') {
+                char *initial = (char*)buff->bytes + buff->pos;
+
+                size_t length = 0;
+                while (peek(buff) != '"') {
+                    length++;
+                    consume(buff);
+                }
+
+                if (consume(buff) != '"') {
+                    assert(false);
+                }
+
+                newFileName = malloc(length + 1);
+                memcpy(newFileName, initial, length);
+                newFileName[length] = '\0';
+            }
+
+            // consume until newline
+            while (peek(buff) != '\n')
+                consume(buff);
+
+            consume(buff);
+
+            fileName = newFileName;
+            line = newLineNumber;
+            col = 1;
+
+            continue;
+        }
+
         // Comments
-        if (peekMulti(buff, "//")) {
+        else if (peekMulti(buff, "//")) {
             uint64_t commentLength = 0;
 
             while (peekAhead(buff, commentLength) != '\r' &&
@@ -70,7 +152,15 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
 
             col += commentLength;
 
-            // FIXME: Do we need to keep comments?
+            continue;
+        }
+
+        else if (peekMulti(buff, "/*")) {
+            while (!peekMulti(buff, "*/")) {
+                consume(buff);
+            }
+            consume(buff);
+            consume(buff);
             continue;
         }
 
@@ -82,10 +172,12 @@ bool lexFile(Buffer buffer, TokenList *outTokens) {
                 buffer.pos++;
             buffer.pos++;
 
+            // Add line info
+            addLineLengthInfo(outLines, fileName, line, col);
+
             line++;
             col = 1;
 
-            // FIXME: We still need a way to keep track of new lines
             continue;
         }
         else if (isspace(peek(buff))) {

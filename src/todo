@@ -1,10 +1,13 @@
+Usage:
+- my command line args
+- files to run
+- gcc command line args (defines, include paths, warnings)
+
 Config
 - Rules to ignore
 - Params for certain rules
 - Have multiple config files and specify different ones
 - Default param
-
-Better description names with specific info about the 
 
 Rules To Implement
 1.3.a - Parser and Lexer
@@ -13,3 +16,12 @@ Rules To Implement
 1.6.a - Parser
 1.7.c - Parser
 1.7.d - Parser
+
+Preprocess files
+
+Convert CST to AST
+
+Detect if files are user files or lib files
+Keep track of which files lines are in
+
+Make lexer handle errors much better
