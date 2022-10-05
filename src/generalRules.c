@@ -87,60 +87,28 @@ void rule_1_3_b(Rule rule, RuleContext context) {
     }
 }
 
-// Verifies no single letter variable names
-// NOTE: Doesn't catch all abbreviations!!!
-// TODO: Should we look for common abbreviations like idx?
-void rule_1_5_a(Rule rule, RuleContext context) {
-    // for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
-    //     Token tok = context.tokens.tokens[i];
-
-    //     if (tok.type != Token_Ident)
-    //         continue;
-
-    //     if (strlen(tok.ident) > 1)
-    //         continue;
-
-    //     // TODO: Pull these from a config file
-    //     if (strcmp(tok.ident, "i") == 0)
-    //         continue;
-
-    //     if (strcmp(tok.ident, "c") == 0)
-    //         continue;
-
-    //     if (strcmp(tok.ident, "x") == 0)
-    //         continue;
-
-    //     if (strcmp(tok.ident, "y") == 0)
-    //         continue;
-
-    //     reportRuleViolation(rule.name,
-    //         "Variable names should be descriptive, thus not a single letter",
-    //         context.fileName, tok.line);
-    // }
-}
-
 // FIXME: Rules 1.7.a and 1.7.b are pretty much identical,
 //        so they should probably be refactored
 // Verifies there is no use of auto keyword
 void rule_1_7_a(Rule rule, RuleContext context) {
-    // for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
-    //     Token tok = context.tokens.tokens[i];
-    //     if (tok.type == Token_auto) {
-    //         reportRuleViolation(rule.name,
-    //             "Use of auto keyword is prohibited",
-    //             context.fileName, tok.line);
-    //     }
-    // }
+    for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
+        Token tok = context.tokens.tokens[i];
+        if (tok.type == Token_auto) {
+            reportRuleViolation(rule.name,
+                "Use of auto keyword is prohibited",
+                context.fileName, tok.line);
+        }
+    }
 }
 
 // Verifies there is no use of register keyword
 void rule_1_7_b(Rule rule, RuleContext context) {
-    // for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
-    //     Token tok = context.tokens.tokens[i];
-    //     if (tok.type == Token_register) {
-    //         reportRuleViolation(rule.name,
-    //             "Use of register keyword is prohibited",
-    //             context.fileName, tok.line);
-    //     }
-    // }
+    for (uint64_t i = 0; i < context.tokens.numTokens; i++) {
+        Token tok = context.tokens.tokens[i];
+        if (tok.type == Token_register) {
+            reportRuleViolation(rule.name,
+                "Use of register keyword is prohibited",
+                context.fileName, tok.line);
+        }
+    }
 }
