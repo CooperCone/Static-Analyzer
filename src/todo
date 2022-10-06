@@ -22,6 +22,7 @@ Preprocess files
 Convert CST to AST
 
 Detect if files are user files or lib files
-Keep track of which files lines are in
 
 Make lexer handle errors much better
+
+Starting typedefed types in config

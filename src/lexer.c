@@ -83,7 +83,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
         Token tok = {0};
         tok.line = line;
         tok.col = col;
-        // TODO: Should we update line and col in a better way?
+        tok.fileName = fileName;
 
         // Line commands
         if (consumeIf(buff, '#')) {
@@ -274,9 +274,9 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
 
         // Operators
         TripleCharacterOp("...", Token_Ellipsis)
+        TripleCharacterOp(">>=", Token_ShiftRightAssign)
+        TripleCharacterOp("<<=", Token_ShiftLeftAssign)
 
-        DoubleCharacterOp(">>=", Token_ShiftRightAssign)
-        DoubleCharacterOp("<<=", Token_ShiftLeftAssign)
         DoubleCharacterOp("+=", Token_AddAssign)
         DoubleCharacterOp("-=", Token_SubAssign)
         DoubleCharacterOp("*=", Token_MulAssign)
@@ -378,6 +378,10 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
     printDebug("Keyword: " # keyword "\n");\
 }
 
+#define printableOp(op, text) else if (tok.type == op) {\
+    printDebug(text "\n");\
+}
+
 void printTokens(TokenList tokens) {
     printDebug("Tokens: %lu\n", tokens.numTokens);
 
@@ -430,6 +434,29 @@ void printTokens(TokenList tokens) {
         printableKeyword(complex)
         printableKeyword(imaginary)
 
+        printableOp(Token_Ellipsis, "...")
+        printableOp(Token_ShiftRightAssign, ">>=")
+        printableOp(Token_ShiftLeftAssign, "<<=")
+        printableOp(Token_AddAssign, "+=")
+        printableOp(Token_SubAssign, "-=")
+        printableOp(Token_MulAssign, "*=")
+        printableOp(Token_DivAssign, "/=")
+        printableOp(Token_ModAssign, "%%=")
+        printableOp(Token_AndAssign, "&=")
+        printableOp(Token_XorAssign, "^=")
+        printableOp(Token_OrAssign, "|=")
+        printableOp(Token_ShiftRightOp, ">>")
+        printableOp(Token_ShiftLeftOp, "<<")
+        printableOp(Token_IncOp, "++")
+        printableOp(Token_DecOp, "--")
+        printableOp(Token_PtrOp, "->")
+        printableOp(Token_LogAndOp, "&&")
+        printableOp(Token_LogOrOp, "||")
+        printableOp(Token_LEqOp, "<=")
+        printableOp(Token_GEqOp, ">=")
+        printableOp(Token_EqOp, "==")
+        printableOp(Token_NEqOp, "!=")
+
         else if (tok.type == Token_Ident) {
             printDebug("Ident: %s\n", tok.ident);
         }
@@ -449,7 +476,7 @@ void printTokens(TokenList tokens) {
             printDebug("\\n\n");
         }
         else {
-            printDebug("type: %d\n", tok.type);
+            printf("type: %d\n", tok.type);
             assert(false);
         }
     }

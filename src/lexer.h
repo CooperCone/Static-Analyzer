@@ -91,6 +91,7 @@ typedef struct {
     TokenType type;
     uint64_t line;
     uint64_t col;
+    char *fileName;
     union {
         char *ident;
         char *whitespace;

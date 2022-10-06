@@ -8,6 +8,21 @@
 #include "array.h"
 #include "debug.h"
 
+typedef struct {
+    size_t numTypedefs;
+    char **typedefNames;
+} TypedefTable;
+
+bool typedefTable_find(TypedefTable table, char *name) {
+    for (size_t i = 0; i < table.numTypedefs; i++) {
+        if (strcmp(table.typedefNames[i], name) == 0)
+            return true;
+    }
+    return false;
+}
+
+static TypedefTable g_typedefTable;
+
 // CLEANUP: A lot of this can be combined
 // - need a pass, fail function
 // - optional parser
@@ -2360,8 +2375,16 @@ PostAtomicType:
     tokens->pos = pos;
 
     // Parse typedef name
-    // FIXME: Keep Track of which names are typedefed
-    // assert(false);
+    if (peekTok(tokens).type == Token_Ident) {
+        Token tok = consumeTok(tokens);
+        if (typedefTable_find(g_typedefTable, tok.ident)) {
+            type->type = TypeSpecifier_TypedefName;
+            type->typedefName = tok.ident;
+            return pass;
+        }
+    }
+
+    tokens->pos = pos;
 
     return fail;
 }
@@ -3246,13 +3269,19 @@ ParseRes parseExternalDecl(TokenList *tokens, ExternalDecl *outDecl) {
 }
 
 bool parseTokens(TokenList *tokens, TranslationUnit *outUnit) {
+    ArrayAppend(g_typedefTable.typedefNames, g_typedefTable.numTypedefs, "__builtin_va_list");
+
     tokens->pos = 0;
 
     while (tokens->pos < tokens->numTokens) {
+        size_t pos = tokens->pos;
+
         ExternalDecl decl = {0};
         ParseRes res = parseExternalDecl(tokens, &decl);
         if (!res.success) {
-            printf("Error: %s\n", res.failMessage);
+            tokens->pos = pos;
+            Token tok = tokens->tokens[tokens->pos];
+            printf("Error %s:%ld: %s\n", tok.fileName, tok.line, res.failMessage);
             return false;
         }
         ArrayAppend(outUnit->decls, outUnit->numDecls, decl);
