@@ -151,47 +151,37 @@ typedef struct {
 } PostfixExpr;
 
 typedef enum {
-    UnaryPrefixCast_And,
-    UnaryPrefixCast_Star,
-    UnaryPrefixCast_Plus,
-    UnaryPrefixCast_Minus,
-    UnaryPrefixCast_Tilde,
-    UnaryPrefixCast_Not,
-} UnaryPrefixCastType;
-
-typedef enum {
-    UnaryPrefix_Inc,
-    UnaryPrefix_Dec,
-    UnaryPrefix_Sizeof,
-    UnaryPrefix_Cast,
+    UnaryPrefix_And,
+    UnaryPrefix_Star,
+    UnaryPrefix_Plus,
+    UnaryPrefix_Minus,
+    UnaryPrefix_Tilde,
+    UnaryPrefix_Not,
 } UnaryExprPrefixType;
 
-typedef struct {
-    UnaryExprPrefixType type;
-    union {
-        struct {
-            UnaryPrefixCastType castType;
-            struct CastExpr *castExpr;
-        };
-    };
-} UnaryExprPrefix;
-
 typedef enum {
-    UnaryExpr_Postfix, // TODO: Should this be renamed?
-    UnaryExpr_Sizeof,
-    UnaryExpr_Alignof,
+    UnaryExpr_UnaryOp,
+    UnaryExpr_Inc,
+    UnaryExpr_Dec,
+    UnaryExpr_SizeofExpr,
+    UnaryExpr_SizeofType,
+    UnaryExpr_AlignofType,
+    UnaryExpr_Base,
 } UnaryExprType;
 
 typedef struct UnaryExpr {
     UnaryExprType type;
-
-    size_t numPrefixes;
-    UnaryExprPrefix *prefixes;
-    
     union {
-        struct TypeName *sizeofType;
-        struct TypeName *alignofType;
-        PostfixExpr expr;
+        struct {
+            UnaryExprPrefixType unaryOpType;
+            struct CastExpr *unaryOpCast;
+        };
+        struct UnaryExpr *incOpExpr;
+        struct UnaryExpr *decOpExpr;
+        struct UnaryExpr *sizeofExpr;
+        struct TypeName *sizeofTypeName;
+        struct TypeName *alignofTypeName;
+        PostfixExpr baseExpr;
     };
 } UnaryExpr;
 

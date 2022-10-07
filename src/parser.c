@@ -21,6 +21,10 @@ bool typedefTable_find(TypedefTable table, char *name) {
     return false;
 }
 
+void typedefTable_add(TypedefTable *table, char *name) {
+    ArrayAppend(table->typedefNames, table->numTypedefs, name);
+}
+
 static TypedefTable g_typedefTable;
 
 // CLEANUP: A lot of this can be combined
@@ -369,6 +373,13 @@ ParseRes parsePrimaryExpr(TokenList *tokens, PrimaryExpr *primary) {
         if (!res.success)
             return res;
         
+        if (!consumeIfTok(tokens, ')')) {
+            return (ParseRes) {
+                .success = false,
+                .failMessage = "Expected ) after ( expr in primary expr"
+            };
+        }
+
         primary->type = PrimaryExpr_Expr;
         primary->expr = malloc(sizeof(expr));
         memcpy(primary->expr, &expr, sizeof(expr));
@@ -571,188 +582,170 @@ PostfixExpr_AfterPrimaryExpr:
     return (ParseRes){ .success = true };
 }
 
-ParseRes parseUnaryExprPrefix(TokenList *tokens, UnaryExprPrefix *prefix) {
-    if (consumeIfTok(tokens, Token_IncOp)) {
-        prefix->type = UnaryPrefix_Inc;
-        return (ParseRes){ .success = true };
-    }
-    if (consumeIfTok(tokens, Token_DecOp)) {
-        prefix->type = UnaryPrefix_Dec;
-        return (ParseRes){ .success = true };
-    }
-    if (consumeIfTok(tokens, Token_sizeof)) {
-        prefix->type = UnaryPrefix_Sizeof;
-        return (ParseRes){ .success = true };
-    }
-    // TODO: These are all the same, figure out a way to combine them
+ParseRes parseUnaryExprPrefix(TokenList *tokens, UnaryExprPrefixType *type) {
     if (consumeIfTok(tokens, '&')) {
-        prefix->type = UnaryPrefix_Cast;
-        prefix->castType = UnaryPrefixCast_And;
-
-        size_t pos = tokens->pos;
-
-        prefix->castExpr = malloc(sizeof(CastExpr));
-        ParseRes res = parseCastExpr(tokens, prefix->castExpr);
-        if (!res.success) {
-            tokens->pos = pos;
-            return res;
-        }
+        *type = UnaryPrefix_And;
         return (ParseRes){ .success = true };
     }
-    if (consumeIfTok(tokens, '*')) {
-        prefix->type = UnaryPrefix_Cast;
-        prefix->castType = UnaryPrefixCast_Star;
-
-        size_t pos = tokens->pos;
-
-        prefix->castExpr = malloc(sizeof(CastExpr));
-        ParseRes res = parseCastExpr(tokens, prefix->castExpr);
-        if (!res.success) {
-            tokens->pos = pos;
-            return res;
-        }
+    else if (consumeIfTok(tokens, '*')) {
+        *type = UnaryPrefix_Star;
         return (ParseRes){ .success = true };
     }
-    if (consumeIfTok(tokens, '+')) {
-        prefix->type = UnaryPrefix_Cast;
-        prefix->castType = UnaryPrefixCast_Plus;
-
-        size_t pos = tokens->pos;
-
-        prefix->castExpr = malloc(sizeof(CastExpr));
-        ParseRes res = parseCastExpr(tokens, prefix->castExpr);
-        if (!res.success) {
-            tokens->pos = pos;
-            return res;
-        }
+    else if (consumeIfTok(tokens, '+')) {
+        *type = UnaryPrefix_Plus;
         return (ParseRes){ .success = true };
     }
-    if (consumeIfTok(tokens, '-')) {
-        prefix->type = UnaryPrefix_Cast;
-        prefix->castType = UnaryPrefixCast_Minus;
-
-        size_t pos = tokens->pos;
-
-        prefix->castExpr = malloc(sizeof(CastExpr));
-        ParseRes res = parseCastExpr(tokens, prefix->castExpr);
-        if (!res.success) {
-            tokens->pos = pos;
-            return res;
-        }
+    else if (consumeIfTok(tokens, '-')) {
+        *type = UnaryPrefix_Minus;
         return (ParseRes){ .success = true };
     }
-    if (consumeIfTok(tokens, '~')) {
-        prefix->type = UnaryPrefix_Cast;
-        prefix->castType = UnaryPrefixCast_Tilde;
-
-        size_t pos = tokens->pos;
-
-        prefix->castExpr = malloc(sizeof(CastExpr));
-        ParseRes res = parseCastExpr(tokens, prefix->castExpr);
-        if (!res.success) {
-            tokens->pos = pos;
-            return res;
-        }
+    else if (consumeIfTok(tokens, '~')) {
+        *type = UnaryPrefix_Tilde;
         return (ParseRes){ .success = true };
     }
-    if (consumeIfTok(tokens, '!')) {
-        prefix->type = UnaryPrefix_Cast;
-        prefix->castType = UnaryPrefixCast_Not;
-
-        size_t pos = tokens->pos;
-
-        prefix->castExpr = malloc(sizeof(CastExpr));
-        ParseRes res = parseCastExpr(tokens, prefix->castExpr);
-        if (!res.success) {
-            tokens->pos = pos;
-            return res;
-        }
+    else if (consumeIfTok(tokens, '!')) {
+        *type = UnaryPrefix_Not;
         return (ParseRes){ .success = true };
     }
 
     return (ParseRes){
         .success = false,
-        .failMessage = "Couldn't find unary expr prefix"
+        .failMessage = "Expected to find a unary prefix op"
     };
 }
 
+// TODO: This is NOT correct.
+// Try to parse
+//    -- unary_operator -> castExpr
+//    -- INC or DEC or sizeof -> unary
+//    -- sizeof ( typeName )
+//    -- alignof ( typeName )
+// Else parse
+//    -- postfix
 ParseRes parseUnaryExpr(TokenList *tokens, UnaryExpr *unaryExpr) {
-    // Look for optional prefixes
-    ParseRes res = {0};
-    do {
-        size_t prefixPos = tokens->pos;
+    size_t pos = tokens->pos;
 
-        UnaryExprPrefix prefixExpr = {0};
-        res = parseUnaryExprPrefix(tokens, &prefixExpr);
-        if (!res.success) {
-            tokens->pos = prefixPos;
-            break;
-        }
+    // Try to parse a unary operator
+    {
+        UnaryExprPrefixType prefixType = {0};
+        if (!parseUnaryExprPrefix(tokens, &prefixType).success)
+            goto ParseUnaryExpr_PostPrefix;
 
-        ArrayAppend(unaryExpr->prefixes,
-            unaryExpr->numPrefixes,
-            prefixExpr);
-    } while (res.success);
-
-    // TODO: Examine if this sizeof parsing generates the correct tree
-
-    // Check to see if this is a sizeof expr
-    size_t preSizeofPos = tokens->pos;
-    if (!consumeIfTok(tokens, Token_sizeof))
-        goto UnaryExpr_AfterSizeof;
-
-    if (!consumeIfTok(tokens, '('))
-        goto UnaryExpr_AfterSizeof;
-
-    TypeName sizeofTypeName = {0};
-    if (!parseTypeName(tokens, &sizeofTypeName).success)
-        goto UnaryExpr_AfterSizeof;
-
-    if (!consumeIfTok(tokens, ')'))
-        goto UnaryExpr_AfterSizeof;
-
-    unaryExpr->type = UnaryExpr_Sizeof;
-    unaryExpr->sizeofType = malloc(sizeof(sizeofTypeName));
-    memcpy(unaryExpr->sizeofType, &sizeofTypeName, sizeof(sizeofTypeName));
-
-    return (ParseRes){ .success = true };
-
-UnaryExpr_AfterSizeof:
-    tokens->pos = preSizeofPos;
-
-    // Check to see if this is a alignof expr
-    preSizeofPos = tokens->pos;
-    if (!consumeIfTok(tokens, Token_alignof))
-        goto UnaryExpr_AfterAlignof;
-
-    if (!consumeIfTok(tokens, '('))
-        goto UnaryExpr_AfterAlignof;
-
-    TypeName alignofTypeName = {0};
-    if (!parseTypeName(tokens, &alignofTypeName).success)
-        goto UnaryExpr_AfterAlignof;
-
-    if (!consumeIfTok(tokens, ')'))
-        goto UnaryExpr_AfterAlignof;
-
-    unaryExpr->type = UnaryExpr_Alignof;
-    unaryExpr->sizeofType = malloc(sizeof(alignofTypeName));
-    memcpy(unaryExpr->sizeofType, &alignofTypeName, sizeof(alignofTypeName));
-
-    return (ParseRes){ .success = true };
-
-UnaryExpr_AfterAlignof:
-    tokens->pos = preSizeofPos;
-
-    PostfixExpr postfixExpr = {0};
-    ParseRes postfixRes = parsePostfixExpr(tokens, &postfixExpr);
-    if (postfixRes.success) {
-        unaryExpr->type = UnaryExpr_Postfix;
-        unaryExpr->expr = postfixExpr;
+        // Try to parse a cast expr
+        CastExpr cast = {0};
+        if (!parseCastExpr(tokens, &cast).success)
+            goto ParseUnaryExpr_PostPrefix;
+        
+        unaryExpr->type = UnaryExpr_UnaryOp;
+        unaryExpr->unaryOpType = prefixType;
+        unaryExpr->unaryOpCast = malloc(sizeof(cast));
+        memcpy(unaryExpr->unaryOpCast, &cast, sizeof(cast));
         return (ParseRes){ .success = true };
     }
 
-    return postfixRes;
+ParseUnaryExpr_PostPrefix:
+
+    tokens->pos = pos;
+
+    // Try to parse an increment, decrement, or sizeof
+    {
+        if (peekTok(tokens).type != Token_IncOp &&
+            peekTok(tokens).type != Token_DecOp &&
+            peekTok(tokens).type != Token_sizeof)
+        {
+            goto ParseUnaryExpr_PostIncDecSizeofExpr;
+        }
+
+        Token tok = consumeTok(tokens);
+
+        UnaryExpr innerExpr = {0};
+        if (!parseUnaryExpr(tokens, &innerExpr).success)
+            goto ParseUnaryExpr_PostIncDecSizeofExpr;
+
+        UnaryExpr *innerAllocated = malloc(sizeof(innerExpr));
+        memcpy(innerAllocated, &innerExpr, sizeof(innerExpr));
+        if (tok.type == Token_IncOp) {
+            unaryExpr->type = UnaryExpr_Inc;
+            unaryExpr->incOpExpr = innerAllocated;
+        }
+        else if (tok.type == Token_DecOp) {
+            unaryExpr->type = UnaryExpr_Dec;
+            unaryExpr->decOpExpr = innerAllocated;
+        }
+        else {
+            unaryExpr->type = UnaryExpr_SizeofExpr;
+            unaryExpr->sizeofExpr = innerAllocated;
+        }
+
+        return (ParseRes){ .success = true };
+    }
+
+ParseUnaryExpr_PostIncDecSizeofExpr:
+
+    tokens->pos = pos;
+
+    // Try to parse a sizeof ( typename )
+    {
+        if (!consumeIfTok(tokens, Token_sizeof))
+            goto ParseUnaryExpr_PostSizeofTypename;
+
+        if (!consumeIfTok(tokens, '('))
+            goto ParseUnaryExpr_PostSizeofTypename;
+
+        TypeName typeName = {0};
+        if (!parseTypeName(tokens, &typeName).success)
+            goto ParseUnaryExpr_PostSizeofTypename;
+
+        if (!consumeIfTok(tokens, ')'))
+            goto ParseUnaryExpr_PostSizeofTypename;
+
+        unaryExpr->type = UnaryExpr_SizeofType;
+        unaryExpr->sizeofTypeName = malloc(sizeof(typeName));
+        memcpy(unaryExpr->sizeofExpr, &typeName, sizeof(typeName));
+
+        return (ParseRes){ .success = true };
+    }
+
+ParseUnaryExpr_PostSizeofTypename:
+
+    tokens->pos = pos;
+
+    // Try to parse an alignof typename
+    {
+        if (!consumeIfTok(tokens, Token_alignof))
+            goto ParseUnaryExpr_PostAlignofTypename;
+
+        if (!consumeIfTok(tokens, '('))
+            goto ParseUnaryExpr_PostAlignofTypename;
+
+        TypeName typeName = {0};
+        if (!parseTypeName(tokens, &typeName).success)
+            goto ParseUnaryExpr_PostAlignofTypename;
+
+        if (!consumeIfTok(tokens, ')'))
+            goto ParseUnaryExpr_PostAlignofTypename;
+
+        unaryExpr->type = UnaryExpr_AlignofType;
+        unaryExpr->alignofTypeName = malloc(sizeof(typeName));
+        memcpy(unaryExpr->alignofTypeName, &typeName, sizeof(typeName));
+
+        return (ParseRes){ .success = true };        
+    }
+
+ParseUnaryExpr_PostAlignofTypename:
+
+    tokens->pos = pos;
+
+    // If we got here then we need to parse a postfix expr
+    PostfixExpr postfix = {0};
+    ParseRes postfixRes = parsePostfixExpr(tokens, &postfix);
+    if (!postfixRes.success)
+        return postfixRes;
+
+    unaryExpr->type = UnaryExpr_Base;
+    unaryExpr->baseExpr = postfix;
+
+    return (ParseRes){ .success = true };
 }
 
 ParseRes parseCastExpr(TokenList *tokens, CastExpr *cast) {
@@ -1630,6 +1623,8 @@ ParseRes parsePostDirectDeclarator(TokenList *tokens, PostDirectDeclarator *post
         if (peekAheadTok(tokens, 0).type == '*' &&
             peekAheadTok(tokens, 1).type == ']')
         {
+            consumeTok(tokens);
+            consumeTok(tokens);
             postDeclarator->bracketIsStar = true;
             return (ParseRes){ .success = true };
         }
@@ -1689,6 +1684,13 @@ ParseRes parsePostDirectDeclarator(TokenList *tokens, PostDirectDeclarator *post
             }
             else {
                 tokens->pos = preAssignPos;
+            }
+
+            if (!consumeIfTok(tokens, ']')) {
+                return (ParseRes) {
+                    .success = false,
+                    .failMessage = "Expected ] after expr in pos direct declarator"
+                };
             }
 
             // Validate input
@@ -2594,6 +2596,13 @@ ParseRes parseInitDeclaratorList(TokenList *tokens, InitDeclaratorList *initList
     return (ParseRes){ .success = true };
 }
 
+char *directDeclarator_getName(DirectDeclarator decl) {
+    if (decl.type == DirectDeclarator_Ident)
+        return decl.ident;
+    else
+        return directDeclarator_getName(decl.declarator->directDeclarator);
+}
+
 ParseRes parseDeclaration(TokenList *tokens, Declaration *outDef) {
     // Try parse a static assert declaration
     if (peekTok(tokens).type == Token_staticAssert) {
@@ -2637,6 +2646,29 @@ ParseRes parseDeclaration(TokenList *tokens, Declaration *outDef) {
             .failMessage = "Expected semicolon after declaration"
         };
     }
+
+    // If starts with typedef, look through init declarator list and
+    // pull out typedef names
+    if (specifiers.numSpecifiers == 0)
+        goto Post_Typedef_Ident;
+
+    DeclarationSpecifier declSpec = specifiers.specifiers[0];
+    if (declSpec.type != DeclarationSpecifier_StorageClass)
+        goto Post_Typedef_Ident;
+
+    if (declSpec.storageClass != StorageClass_Typedef)
+        goto Post_Typedef_Ident;
+
+    // Now that we know we have a typedef, add all the names
+    for (size_t i = 0; i < initList.numInitDeclarators; i++) {
+        InitDeclarator decl = initList.initDeclarators[i];
+        char *name = directDeclarator_getName(decl.decl.directDeclarator);
+        if (name != NULL) {
+            typedefTable_add(&g_typedefTable, name);
+        }
+    }
+
+Post_Typedef_Ident:
 
     return (ParseRes){ .success = true };
 }
@@ -3281,6 +3313,7 @@ bool parseTokens(TokenList *tokens, TranslationUnit *outUnit) {
         if (!res.success) {
             tokens->pos = pos;
             Token tok = tokens->tokens[tokens->pos];
+            printf("Current token: %ld\n", tokens->pos);
             printf("Error %s:%ld: %s\n", tok.fileName, tok.line, res.failMessage);
             return false;
         }
@@ -3501,78 +3534,85 @@ void printPostfixExpr(PostfixExpr expr, uint64_t indent) {
     }
 }
 
-void printUnaryPrefixCastType(UnaryPrefixCastType type, uint64_t indent) {
-    if (type == UnaryPrefixCast_And) {
-        printIndent(indent);
-        printDebug("&\n");
-    }
-    else if (type == UnaryPrefixCast_Star) {
-        printIndent(indent);
-        printDebug("*\n");
-    }
-    else if (type == UnaryPrefixCast_Plus) {
-        printIndent(indent);
-        printDebug("+\n");
-    }
-    else if (type == UnaryPrefixCast_Minus) {
-        printIndent(indent);
-        printDebug("-\n");
-    }
-    else if (type == UnaryPrefixCast_Tilde) {
-        printIndent(indent);
-        printDebug("~\n");
-    }
-    else if (type == UnaryPrefixCast_Not) {
-        printIndent(indent);
-        printDebug("!\n");
-    }
-    else {
-        assert(false);
-    }
-}
-
-void printUnaryExprPrefix(UnaryExprPrefix prefix, uint64_t indent) {
-    if (prefix.type == UnaryPrefix_Inc) {
-        printIndent(indent);
-        printDebug("++\n");
-    }
-    else if (prefix.type == UnaryPrefix_Dec) {
-        printIndent(indent);
-        printDebug("--\n");
-    }
-    else if (prefix.type == UnaryPrefix_Sizeof) {
-        printIndent(indent);
-        printDebug("sizeof\n");
-    }
-    else if (prefix.type == UnaryPrefix_Cast) {
-        printUnaryPrefixCastType(prefix.castType, indent);
-        printCastExpr(*(prefix.castExpr), indent);
-    }
-    else {
-        assert(false);
+void printUnaryExprPrefix(UnaryExprPrefixType type, uint64_t indent) {
+    printIndent(indent);
+    switch (type) {
+        case UnaryPrefix_And: {
+            printDebug("&\n");
+            break;
+        }
+        case UnaryPrefix_Star: {
+            printDebug("*\n");
+            break;
+        }
+        case UnaryPrefix_Plus: {
+            printDebug("+\n");
+            break;
+        }
+        case UnaryPrefix_Minus: {
+            printDebug("-\n");
+            break;
+        }
+        case UnaryPrefix_Tilde: {
+            printDebug("~\n");
+            break;
+        }
+        case UnaryPrefix_Not: {
+            printDebug("!\n");
+            break;
+        }
+        default: {
+            assert(false);
+            return;
+        }
     }
 }
 
 void printUnaryExpr(UnaryExpr expr, uint64_t indent) {
-    for (size_t i = 0; i < expr.numPrefixes; i++) {
-        printUnaryExprPrefix(expr.prefixes[i], indent);
-    }
-
-    if (expr.type == UnaryExpr_Postfix) {
-        printPostfixExpr(expr.expr, indent);
-    }
-    else if (expr.type == UnaryExpr_Sizeof) {
-        printIndent(indent);
-        printDebug("sizeof\n");
-        printTypeName(*(expr.sizeofType), indent + BaseIndent);
-    }
-    else if (expr.type == UnaryExpr_Alignof) {
-        printIndent(indent);
-        printDebug("alignof\n");
-        printTypeName(*(expr.sizeofType), indent + BaseIndent);
-    }
-    else {
-        assert(false);
+    switch (expr.type) {
+        case UnaryExpr_UnaryOp: {
+            printUnaryExprPrefix(expr.unaryOpType, indent);
+            printCastExpr(*(expr.unaryOpCast), indent + BaseIndent);
+            break;
+        }
+        case UnaryExpr_Inc: {
+            printIndent(indent);
+            printDebug("++\n");
+            printUnaryExpr(*(expr.incOpExpr), indent + BaseIndent);
+            break;
+        }
+        case UnaryExpr_Dec: {
+            printIndent(indent);
+            printDebug("--\n");
+            printUnaryExpr(*(expr.decOpExpr), indent + BaseIndent);
+            break;
+        }
+        case UnaryExpr_SizeofExpr: {
+            printIndent(indent);
+            printDebug("sizeof expr\n");
+            printUnaryExpr(*(expr.decOpExpr), indent + BaseIndent);
+            break;
+        }
+        case UnaryExpr_SizeofType: {
+            printIndent(indent);
+            printDebug("sizeof typename\n");
+            printTypeName(*(expr.sizeofTypeName), indent + BaseIndent);
+            break;
+        }
+        case UnaryExpr_AlignofType: {
+            printIndent(indent);
+            printDebug("alignof\n");
+            printTypeName(*(expr.alignofTypeName), indent + BaseIndent);
+            break;
+        }
+        case UnaryExpr_Base: {
+            printPostfixExpr(expr.baseExpr, indent);
+            break;
+        }
+        default: {
+            assert(false);
+            return;
+        }
     }
 }
 
