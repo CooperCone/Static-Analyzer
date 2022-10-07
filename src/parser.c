@@ -1728,8 +1728,33 @@ ParseRes parsePostDirectDeclarator(TokenList *tokens, PostDirectDeclarator *post
         // Empty paren early terminate
         if (consumeIfTok(tokens, ')')) {
             postDeclarator->parenType = PostDirectDeclaratorParen_Empty;
+            return (ParseRes){ .success = true };
         }
-        else if (peekTok(tokens).type == Token_Ident) {
+
+        size_t pos = tokens->pos;
+
+        // Try to parse a parameter type list
+        {
+            ParameterTypeList paramList = {0};
+            ParseRes paramRes = parseParameterTypeList(tokens, &paramList);
+            if (!paramRes.success)
+                goto ParsePostDirectDeclarator_PostParenParamList;
+
+            postDeclarator->parenType = PostDirectDeclaratorParen_ParamTypelist;
+            postDeclarator->parenParamTypeList = paramList;
+
+            if (!consumeIfTok(tokens, ')'))
+                goto ParsePostDirectDeclarator_PostParenParamList;
+
+            return (ParseRes){ .success = true };
+        }
+
+ParsePostDirectDeclarator_PostParenParamList:
+
+        tokens->pos = pos;
+
+        // Parse an identifier list
+        {
             IdentifierList identList = {0};
             ParseRes identRes = parseIdentifierList(tokens, &identList);
             if (!identRes.success) {
@@ -1750,29 +1775,13 @@ ParseRes parsePostDirectDeclarator(TokenList *tokens, PostDirectDeclarator *post
             }
 
             return (ParseRes){ .success = true };
+
         }
-        else {
-            ParameterTypeList paramList = {0};
-            ParseRes paramRes = parseParameterTypeList(tokens, &paramList);
-            if (!paramRes.success) {
-                return (ParseRes) {
-                    .success = false,
-                    .failMessage = "Expected param type list after ( in direct declarator"
-                };
-            }
 
-            postDeclarator->parenType = PostDirectDeclaratorParen_ParamTypelist;
-            postDeclarator->parenParamTypeList = paramList;
-
-            if (!consumeIfTok(tokens, ')')) {
-                return (ParseRes) {
-                    .success = false,
-                    .failMessage = "Expected ) after parameter type list"
-                };
-            }
-
-            return (ParseRes){ .success = true };
-        }
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expected either a parameter list or identifier list after ( in post direct declarator"
+        };
     }
 
     return (ParseRes) {

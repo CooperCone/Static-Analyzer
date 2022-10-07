@@ -134,6 +134,28 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             continue;
         }
 
+        // TODO: Determine if we need to keep this keyword
+        else if (consumeMultiIf(buff, "__attribute__")) {
+            uint64_t numParens = 0;
+
+            // consume all whitespace
+            while (isspace(peek(buff)))
+                consume(buff);
+
+            if (consumeIf(buff, '('))
+                numParens++;
+
+            while (numParens > 0) {
+                if (peek(buff) == '(')
+                    numParens++;
+                if (peek(buff) == ')')
+                    numParens--;
+                consume(buff);
+            }
+
+            continue;
+        }
+
         // Comments
         else if (peekMulti(buff, "//")) {
             uint64_t commentLength = 0;
@@ -157,6 +179,9 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
 
         else if (peekMulti(buff, "/*")) {
             while (!peekMulti(buff, "*/")) {
+                if (peek(buff) == '\n')
+                    line++;
+
                 consume(buff);
             }
             consume(buff);
@@ -233,6 +258,8 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
         Keyword("inline", Token_inline)
         Keyword("register", Token_register)
         Keyword("restrict", Token_restrict)
+        Keyword("__restrict", Token_restrict) // GCC uses __restric the same as restrict
+        Keyword("__restrict__", Token_restrict) // GCC uses __restric__ the same as restrict
         Keyword("return", Token_return)
         Keyword("sizeof", Token_sizeof)
         Keyword("static", Token_static)
