@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "trie.h"
+
 #include "generalRules.h"
 
 #define TermColorRed "\033[0;31m"
@@ -11,9 +13,20 @@
 #define TermColorWhite "\033[0;37m"
 #define TermColorReset "\033[0;0m"
 
+static Trie validFileNames;
+
+void addInvalidRulePath(char *path) {
+    trie_addString(&validFileNames, path);
+}
+
 void reportRuleViolation(char *ruleName, char *description,
     char *fileName, uint64_t line)
 {
+    if (trie_matchEarlyTerm(&validFileNames, fileName)) {
+        // TODO: Should we log that we ignored a filename?
+        return;
+    }
+
     printf(TermColorRed);
     printf("Error: ");
     printf(TermColorCyan);

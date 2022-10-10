@@ -13,7 +13,7 @@ void rule_1_2_a(Rule rule, RuleContext context) {
             if (file.lineLengths[ii] > 81) {
                 reportRuleViolation(rule.name,
                     "Lines no longer than 80 characters",
-                    file.fileName, ii + 1
+                    file.fileName, ii + 1   
                 );
             }
         }
@@ -42,7 +42,7 @@ void rule_1_3_b(Rule rule, RuleContext context) {
                 if (tokens[prevIdx].type != Token_Comment) {
                     reportRuleViolation(rule.name,
                         "Braces must not have anything before them",
-                        context.fileName, tok.line);
+                        tok.fileName, tok.line);
                     break;
                 }
                 prevIdx--;
@@ -59,7 +59,7 @@ void rule_1_3_b(Rule rule, RuleContext context) {
                 if (tokens[postIdx].type != Token_Comment) {
                     reportRuleViolation(rule.name,
                         "Braces must not have anything after them",
-                        context.fileName, tok.line);
+                        tok.fileName, tok.line);
                     break;
                 }
                 postIdx++;
@@ -81,7 +81,7 @@ void rule_1_3_b(Rule rule, RuleContext context) {
             if (openColumn != tok.col) {
                 reportRuleViolation(rule.name,
                     "Closing braces must be on the same column as their opening",
-                    context.fileName, tok.line);
+                    tok.fileName, tok.line);
             }
         }
     }
