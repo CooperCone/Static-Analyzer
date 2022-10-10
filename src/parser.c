@@ -1797,7 +1797,7 @@ ParseRes parseDirectDeclarator(TokenList *tokens, DirectDeclarator *directDeclar
         directDeclarator->type = DirectDeclarator_Ident;
         directDeclarator->ident = ident.ident;
     }
-    else if (peekTok(tokens).type == '(') {
+    else if (consumeIfTok(tokens, '(')) {
         Declarator nestedDeclarator = {0};
         ParseRes nestedDeclRes = parseDeclarator(tokens, &nestedDeclarator);
         if (!nestedDeclRes.success)
@@ -2583,6 +2583,35 @@ ParseRes parseInitDeclaratorList(TokenList *tokens, InitDeclaratorList *initList
         if (!declRes.success) {
             tokens->pos = pos;
             break;
+        }
+
+        // Parse an optional assembly rename
+        // We don't need to save the data in here because this is
+        // just for an extension in gcc to rename a symbol in the linker
+        if (consumeIfTok(tokens, Token_asm)) {
+            // Look for a (
+            if (!consumeIfTok(tokens, '(')) {
+                return (ParseRes) {
+                    .success = false,
+                    .failMessage = "Expected ( after asm in declaration rename"
+                };
+            }
+
+            // Look for String
+            if (!consumeIfTok(tokens, Token_ConstString)) {
+                return (ParseRes) {
+                    .success = false,
+                    .failMessage = "Expected String after 'asm (' in declaration rename"
+                };
+            }
+
+            // Look for )
+            if (!consumeIfTok(tokens, ')')) {
+                return (ParseRes) {
+                    .success = false,
+                    .failMessage = "Expected ) after 'asm ( String' in declaration rename"
+                };
+            }
         }
 
         ArrayAppend(initList->initDeclarators,

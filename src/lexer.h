@@ -51,6 +51,7 @@ typedef enum {
     Token_complex,
     Token_imaginary,
 
+    Token_asm,
     Token_auto,
     Token_break,
     Token_case,

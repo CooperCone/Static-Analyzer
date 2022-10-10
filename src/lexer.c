@@ -242,6 +242,8 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
         Keyword("_Imaginary", Token_imaginary)
 
         // Keywords
+        Keyword("asm", Token_asm)
+        Keyword("__asm__", Token_asm)
         Keyword("auto", Token_auto)
         Keyword("break", Token_break)
         Keyword("case", Token_case)
@@ -365,6 +367,18 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
 
             buffer.pos += 1; // Get the last "
             col += stringLength + 2; // 2 so we also get the first one
+
+            // If head of tokens is a ConstString, append to it
+            if (outTokens->tokens[outTokens->numTokens - 1].type == Token_ConstString) {
+                Token *strTok = outTokens->tokens + outTokens->numTokens - 1;
+                char *newStr = malloc(stringLength + strlen(strTok->constString));
+                strcpy(newStr, strTok->constString);
+                strcat(newStr, str);
+                free(str);
+                free(strTok->constString);
+                strTok->constString = newStr;
+                continue;
+            }
         }
         // TODO: Prefix
         // TODO: Suffix
@@ -422,6 +436,7 @@ void printTokens(TokenList tokens) {
             printDebug("Character: %c\n", tok.type);
         }
 
+        printableKeyword(asm)
         printableKeyword(auto)
         printableKeyword(break)
         printableKeyword(case)
