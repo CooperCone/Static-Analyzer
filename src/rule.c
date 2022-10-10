@@ -15,15 +15,37 @@
 
 static Trie validFileNames;
 
-void addInvalidRulePath(char *path) {
-    trie_addString(&validFileNames, path);
+void findRuleIgnorePaths(Config config) {
+    for (int i = 0; i < config.numConfigValues; i++) {
+        ConfigValue value = config.configValues[i];
+        if (value.type != ConfigValue_Map) {
+            continue;
+        }
+
+        if (strcasecmp(value.mapKey, "ignorePaths") != 0)
+            continue;
+
+        if (value.mapValue->type != ConfigValue_List) {
+            printf("Config: Expected ignorePaths value to be a list\n");
+            continue;
+        }
+
+        ConfigValue *paths = value.mapValue;
+        for (int ii = 0; ii < paths->listSize; ii++) {
+            if (paths->listValues[ii].type != ConfigValue_String) {
+                printf("Config: Expected ignorePaths inner value to be a string\n");
+                continue;
+            }
+
+            trie_addString(&validFileNames, paths->listValues[ii].string);
+        }
+    }
 }
 
 void reportRuleViolation(char *ruleName, char *description,
     char *fileName, uint64_t line)
 {
     if (trie_matchEarlyTerm(&validFileNames, fileName)) {
-        // TODO: Should we log that we ignored a filename?
         return;
     }
 

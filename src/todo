@@ -4,10 +4,12 @@ Usage:
 - gcc command line args (defines, include paths, warnings)
 
 Config
-- Rules to ignore
 - Params for certain rules
 - Have multiple config files and specify different ones
 - Default param
+- Have some that are easy to access (rulesToIgnore, pathsToIgnore)
+    - Add in automatic type checking?
+    - Add in default params?
 
 Rules To Implement
 1.3.a - Parser and Lexer
@@ -21,7 +23,7 @@ Preprocess files
 
 Convert CST to AST
 
-Detect if files are user files or lib files
+Add rule ignoring to config file
 
 Make lexer handle errors much better
 

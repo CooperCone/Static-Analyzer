@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     Rule *rules = NULL;
     size_t numRules = generateRules(config, &rules);
 
-    addInvalidRulePath("/usr/include/");
+    findRuleIgnorePaths(config);
 
     for (uint64_t i = 1; i < argc; i++) {
         // TODO: Preprocess file

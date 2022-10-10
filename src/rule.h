@@ -23,4 +23,4 @@ size_t generateRules(Config config, Rule **outRules);
 void reportRuleViolation(char *name, char *description,
     char *fileName, uint64_t line);
 
-void addInvalidRulePath(char *filePath);
+void findRuleIgnorePaths(Config config);
