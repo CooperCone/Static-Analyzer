@@ -421,6 +421,9 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             size_t length = 1;
 
             while (peekAhead(buff, length) != '\'') {
+                if (peekAhead(buff, length) == '\\')
+                    length++;
+
                 length++;
             }
 
@@ -436,7 +439,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
         }
 
         else {
-            printf("Error: Lexer: Discarding: %c\n", buffer.bytes[buffer.pos]);
+            printf("Error: Lexer: Discarding: %c at %s:%lu\n", buffer.bytes[buffer.pos], fileName, line);
 
             buffer.pos++;
             col++;

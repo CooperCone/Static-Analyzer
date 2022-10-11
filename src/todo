@@ -1,7 +1,6 @@
 Version 1.0:
 - Parser resilience tests
     - Parse entire static analyzer
-        - generalRules.c
         - lexer.c
         - main.c
         - parser.c
@@ -10,6 +9,7 @@ Version 1.0:
 - Determine how to run preprocessor
 - Set up config contracts and ease of use
 - Memory management
+- Better logging system
 - Parser resilience tests round 2
 - Security audit
 
@@ -39,8 +39,4 @@ Preprocess files
 
 Convert CST to AST
 
-Add rule ignoring to config file
-
 Make lexer handle errors much better
-
-Starting typedefed types in config
