@@ -1,9 +1,25 @@
+Version 1.0:
+- Parser resilience tests
+    - Parse entire static analyzer
+        - generalRules.c
+        - lexer.c
+        - main.c
+        - parser.c
+        - rule.c
+        - trie.c
+- Determine how to run preprocessor
+- Set up config contracts and ease of use
+- Memory management
+- Parser resilience tests round 2
+- Security audit
+
 Usage:
 - my command line args
 - files to run
 - gcc command line args (defines, include paths, warnings)
 
 Config
+- Comments for rules
 - Params for certain rules
 - Have multiple config files and specify different ones
 - Default param

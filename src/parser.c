@@ -120,6 +120,8 @@ ParseRes parseDesignator(TokenList *tokens, Designator *designator) {
         }
         designator->type = Designator_Ident;
         designator->ident = consumeTok(tokens).ident;
+
+        return (ParseRes) { .success = true };
     }
     else if (consumeIfTok(tokens, '[')) {
         
@@ -144,11 +146,12 @@ ParseRes parseDesignator(TokenList *tokens, Designator *designator) {
 
         return (ParseRes) { .success = true };
     }
-
-    return (ParseRes){
-        .success = false,
-        .failMessage = "Expected . or [ to start a designator"
-    };
+    else {
+        return (ParseRes){
+            .success = false,
+            .failMessage = "Expected . or [ to start a designator"
+        };
+    }
 }
 
 ParseRes parseDesignation(TokenList *tokens, Designation *designation) {
@@ -766,7 +769,7 @@ ParseRes parseCastExpr(TokenList *tokens, CastExpr *cast) {
     CastExpr newCast = {0};
     ParseRes castRes = parseCastExpr(tokens, &newCast);
     if (!castRes.success)
-        return castRes;
+        goto Cast_NoCast;
 
     cast->type = CastExpr_Cast;
     cast->castType = malloc(sizeof(typeName));
@@ -877,7 +880,7 @@ ParseRes parseShiftExpr(TokenList *tokens, ShiftExpr *shiftExpr) {
     shiftExpr->baseExpr = additiveExpr;
 
     while (peekTok(tokens).type == Token_ShiftLeftOp ||
-        peekTok(tokens).type == Token_GEqOp)
+        peekTok(tokens).type == Token_ShiftRightOp)
     {
         TokenType type = consumeTok(tokens).type;
         ShiftOp op = type == Token_ShiftLeftOp ? Shift_Left : Shift_Right;
@@ -1812,7 +1815,7 @@ ParseRes parseDirectDeclarator(TokenList *tokens, DirectDeclarator *directDeclar
 
         directDeclarator->type = DirectDeclarator_ParenDeclarator;
         directDeclarator->declarator = malloc(sizeof(nestedDeclarator));
-        memcpy(directDeclarator->declarator, &directDeclarator, sizeof(directDeclarator));
+        memcpy(directDeclarator->declarator, &nestedDeclarator, sizeof(nestedDeclarator));
     }
     else {
         return (ParseRes) {
@@ -2231,6 +2234,7 @@ ParseRes parseEnumerator(TokenList *tokens, Enumerator *enumerator) {
 }
 
 ParseRes parseEnumeratorList(TokenList *tokens, EnumeratorList *list) {
+    bool foundEndBlock = false;
     bool hasComma = false;
     do {
 
@@ -2243,7 +2247,9 @@ ParseRes parseEnumeratorList(TokenList *tokens, EnumeratorList *list) {
     
         ArrayAppend(list->enumerators, list->numEnumerators, enumerator);
 
-    } while(hasComma);
+        foundEndBlock = peekTok(tokens).type == '}';
+
+    } while(hasComma && !foundEndBlock);
 
     return (ParseRes){ .success = true };
 }
@@ -2866,6 +2872,13 @@ ParseRes parseExpressionStatement(TokenList *tokens, ExpressionStatement *expres
     ParseRes exprRes = parseExpr(tokens, &expr);
     if (!exprRes.success)
         return exprRes;
+
+    if (!consumeIfTok(tokens, ';')) {
+        return (ParseRes) {
+            .success = false,
+            .failMessage = "Expected ; after expr in expression stmt"
+        };
+    }
 
     expression->isEmpty = false;
     expression->expr = expr;

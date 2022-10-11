@@ -61,7 +61,15 @@ void appendTok(TokenList *tokens, Token tok) {
     col++;\
 }
 
-#define Keyword(name, tokType) else if (consumeMultiIf(buff, name)) {\
+// Check that next characters are keyword and char after isn't a valid ident
+// character
+#define Keyword(name, tokType) else if (peekMulti(buff, name) &&\
+    (\
+        (peekAhead(buff, strlen(name)) != '_') &&\
+        (!isalnum(peekAhead(buff, strlen(name))))\
+    )\
+) {\
+    consumeMultiIf(buff, name);\
     tok.type = tokType;\
     col += strlen(name);\
 }
@@ -131,6 +139,11 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             line = newLineNumber;
             col = 1;
 
+            continue;
+        }
+
+        // Look for keywords to ignore
+        else if (consumeMultiIf(buff, "__extension__")) {
             continue;
         }
 
@@ -258,10 +271,12 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
         Keyword("goto", Token_goto)
         Keyword("if", Token_if)
         Keyword("inline", Token_inline)
+        Keyword("__inline", Token_inline) // GCC uses __inline same as inline
+        Keyword("__inline__", Token_inline) // GCC uses __inline__ same as inline
         Keyword("register", Token_register)
         Keyword("restrict", Token_restrict)
-        Keyword("__restrict", Token_restrict) // GCC uses __restric the same as restrict
-        Keyword("__restrict__", Token_restrict) // GCC uses __restric__ the same as restrict
+        Keyword("__restrict", Token_restrict) // GCC uses __restrict the same as restrict
+        Keyword("__restrict__", Token_restrict) // GCC uses __restrict__ the same as restrict
         Keyword("return", Token_return)
         Keyword("sizeof", Token_sizeof)
         Keyword("static", Token_static)
@@ -402,11 +417,30 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             tok.type = Token_ConstNumeric;
             tok.numericWhole = wholeStr;
         }
+        else if (peek(buff) == '\'') {
+            size_t length = 1;
+
+            while (peekAhead(buff, length) != '\'') {
+                length++;
+            }
+
+            length++;
+
+            char *str = NULL;
+            consumeAndCopyOut(buff, length, &str);
+
+            col += length;
+
+            tok.type = Token_ConstNumeric;
+            tok.numericWhole = str;
+        }
 
         else {
-            // TODO: Error Handling
+            printf("Error: Lexer: Discarding: %c\n", buffer.bytes[buffer.pos]);
+
             buffer.pos++;
             col++;
+            continue;
         }
 
         appendTok(outTokens, tok);
