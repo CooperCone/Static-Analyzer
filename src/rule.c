@@ -25,6 +25,7 @@ void findRuleIgnorePaths(Config config) {
         if (strcasecmp(value.mapKey, "ignorePaths") != 0)
             continue;
 
+        // TODO: Move this stuff into the config value list
         if (value.mapValue->type != ConfigValue_List) {
             printf("Config: Expected ignorePaths value to be a list\n");
             continue;

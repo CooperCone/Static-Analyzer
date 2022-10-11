@@ -3,10 +3,12 @@
 
 #include "buffer.h"
 #include "debug.h"
+#include "logger.h"
 
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 void appendConfigTok(ConfigTokenList *list, ConfigToken tok) {
     list->numTokens++;
@@ -66,7 +68,7 @@ void printConfigTokens(ConfigTokenList tokens) {
             printDebug("%c\n", tokens.tokens[i].type);
         }
         else {
-            printf("Error: Invalid printed config token\n");
+            logFatal("Config: Found invalid config token when printing: %d\n", tokens.tokens[i].type);
         }
     }
 }
@@ -95,7 +97,7 @@ bool parseConfigValue(ConfigTokenList *tokens, ConfigValue *outValue) {
                 break;
             }
             else {
-                printf("Config Error: Invalid token between list elems.");
+                logError("Config: Invalid token between list elems: %c\n", tokens->tokens[tokens->curToken].type);
                 return false;
             }
         }
@@ -138,7 +140,8 @@ bool parseConfigValue(ConfigTokenList *tokens, ConfigValue *outValue) {
         return true;
     }
     else {
-        printf("Invalid Config Parameter\n");
+        logError("Config: Invalid config token when parsing a value. Expected a string or '[': %d\n",
+            tokens->tokens[tokens->curToken].type);
         return false;
     }
 }
@@ -146,7 +149,9 @@ bool parseConfigValue(ConfigTokenList *tokens, ConfigValue *outValue) {
 bool readConfigFile(char *configFileName, Config *outConfig) {
     Buffer buffer = {0};
     if (!openAndReadFileToBuffer(configFileName, &buffer)) {
-        printf("Error, couldn't read config file.");
+        char *fileError = strerror(errno);
+        logError("Config: Couldn't read config file with name: %s. \nError msg: %s\n",
+            configFileName, fileError);
         return false;
     }
 

@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "logger.h"
 #include "array.h"
 #include "debug.h"
 
@@ -224,6 +225,7 @@ ParseRes parseInitializer(TokenList *tokens, Initializer *initializer) {
 ParseRes parseInitializerList(TokenList *tokens, InitializerList *list) {
 
     bool hasComma = false;
+    bool isAtEnd = false;
     do {
         size_t beforePos = tokens->pos;
 
@@ -255,7 +257,9 @@ ParseRes parseInitializerList(TokenList *tokens, InitializerList *list) {
         // Parse a ,
         hasComma = consumeIfTok(tokens, ',');
 
-    } while (hasComma);
+        isAtEnd = peekTok(tokens).type == '}';
+
+    } while (!isAtEnd && hasComma);
 
     return (ParseRes){ .success = true };
 }
@@ -1208,29 +1212,71 @@ ParseRes parseAssignExpr(TokenList *tokens, AssignExpr *assignExpr) {
     return (ParseRes){ .success = true };
 }
 
+ParseRes parseInnerExpr(TokenList *tokens, InnerExpr *inner) {
+    size_t pos = tokens->pos;
+
+    // Try to parse parens with a compound statement
+    if (!consumeIfTok(tokens, '('))
+        goto ParseInnerExpr_AfterCompound;
+
+    CompoundStmt compound = {0};
+    if (!parseCompoundStmt(tokens, &compound).success)
+        goto ParseInnerExpr_AfterCompound;
+
+    if (!consumeIfTok(tokens, ')'))
+        goto ParseInnerExpr_AfterCompound;
+
+    inner->type = InnerExpr_CompoundStatement;
+    inner->compoundStmt = malloc(sizeof(compound));
+    memcpy(inner->compoundStmt, &compound, sizeof(compound));
+
+    return (ParseRes){ .success = true };
+
+ParseInnerExpr_AfterCompound:
+    tokens->pos = pos;
+
+    // Try to parse an assign stmt
+    AssignExpr expr = {0};
+    if (!parseAssignExpr(tokens, &expr).success)
+        goto ParseInnerExpr_AfterAssign;
+
+    inner->type = InnerExpr_Assign;
+    inner->assign = expr;
+
+    return (ParseRes){ .success = true };
+
+ParseInnerExpr_AfterAssign:
+
+    return (ParseRes) {
+        .success = false,
+        .failMessage = "Couldn't parse an inner expr"
+    };
+}
+
 ParseRes parseExpr(TokenList *tokens, Expr *expr) {
     bool hasComma = false;
 
     do {
         size_t pos = tokens->pos;
 
-        AssignExpr assign = {0};
-        ParseRes res = parseAssignExpr(tokens, &assign);
+        InnerExpr inner = {0};
+        ParseRes res = parseInnerExpr(tokens, &inner);
         if (!res.success) {
             tokens->pos = pos;
             break;
         }
 
-        ArrayAppend(expr->exprs, expr->numExprs, assign);
+        ArrayAppend(expr->exprs, expr->numExprs, inner);
 
         hasComma = consumeIfTok(tokens, ',');
 
     } while(hasComma);
 
+
     if (expr->numExprs == 0) {
         return (ParseRes) {
             .success = false,
-            .failMessage = "Expr needs at least one assign expr"
+            .failMessage = "Expr needs at least one inner expr"
         };
     }
 
@@ -2734,7 +2780,7 @@ ParseRes parseLabeledStatement(TokenList *tokens, LabeledStatement *stmt) {
     else if (consumeIfTok(tokens, Token_case)) {
         ConditionalExpr constant = {0};
         ParseRes constRes = parseConditionalExpr(tokens, &constant);
-        if (constRes.success) {
+        if (!constRes.success) {
             return constRes;
         }
 
@@ -2929,6 +2975,7 @@ ParseRes parseIterationStatement(TokenList *tokens, IterationStatement *iteratio
         if (!stmtRes.success)
             return stmtRes;
 
+        iteration->type = IterationStatement_DoWhile;
         iteration->doStmt = malloc(sizeof(stmt));
         memcpy(iteration->doStmt, &stmt, sizeof(stmt));
 
@@ -3364,8 +3411,7 @@ bool parseTokens(TokenList *tokens, TranslationUnit *outUnit) {
         if (!res.success) {
             tokens->pos = pos;
             Token tok = tokens->tokens[tokens->pos];
-            printf("Current token: %ld\n", tokens->pos);
-            printf("Error %s:%ld: %s\n", tok.fileName, tok.line, res.failMessage);
+            logError("Parser: %s:%ld: %s\n  Current token position: %ld\n", tok.fileName, tok.line, res.failMessage, tokens->pos);
             return false;
         }
         ArrayAppend(outUnit->decls, outUnit->numDecls, decl);
@@ -3918,11 +3964,23 @@ void printAssignExpr(AssignExpr expr, uint64_t indent) {
     printConditionalExpr(expr.rightExpr, indent);
 }
 
+void printInnerExpr(InnerExpr expr, uint64_t indent) {
+    if (expr.type == InnerExpr_Assign) {
+        printAssignExpr(expr.assign, indent);
+    }
+    else if (expr.type == InnerExpr_CompoundStatement) {
+        printCompoundStmt(*(expr.compoundStmt), indent);
+    }
+    else {
+        assert(false);
+    }
+}
+
 void printExpr(Expr expr, uint64_t indent) {
     printIndent(indent);
     printDebug("Expr: %ld\n", expr.numExprs);
     for (size_t i = 0; i < expr.numExprs; i++) {
-        printAssignExpr(expr.exprs[i], indent + BaseIndent);
+        printInnerExpr(expr.exprs[i], indent + BaseIndent);
     }
 }
 

@@ -1,17 +1,19 @@
 Version 1.0:
-- Parser resilience tests
-    - Parse entire static analyzer
-        - lexer.c
-        - main.c
-        - parser.c
-        - rule.c
-        - trie.c
-- Determine how to run preprocessor
+- Better logging system
+    - Replace all logging in files
+        - Rule
+        - Trie
+    - Add in severity
+    - Add in printing out to files too
 - Set up config contracts and ease of use
 - Memory management
-- Better logging system
+- Determine how to run preprocessor
 - Parser resilience tests round 2
 - Security audit
+
+Parser:
+- Make better error messages
+    - Take the best one of all the optional statements
 
 Usage:
 - my command line args

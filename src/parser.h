@@ -343,9 +343,24 @@ typedef struct AssignExpr {
     ConditionalExpr rightExpr;
 } AssignExpr;
 
+// This is done just to appease the gcc
+// extension gods
+typedef enum {
+    InnerExpr_Assign,
+    InnerExpr_CompoundStatement,
+} InnerExprType;
+
+typedef struct {
+    InnerExprType type;
+    union {
+        AssignExpr assign;
+        struct CompoundStmt *compoundStmt;
+    };
+} InnerExpr;
+
 typedef struct Expr {
     size_t numExprs;
-    AssignExpr *exprs;
+    InnerExpr *exprs;
 } Expr;
 
 typedef struct {

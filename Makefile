@@ -6,3 +6,6 @@ debug:
 
 preprocess:
 	gcc -S -save-temps=obj -DDEBUG src/*.c -Wall -Werror
+
+zip:
+	zip -r staticAnalysis.zip .

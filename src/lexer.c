@@ -8,6 +8,7 @@
 
 #include "debug.h"
 #include "array.h"
+#include "logger.h"
 
 void addLineLengthInfo(LineInfo *info, char *fileName, uint64_t line,
     uint64_t length)
@@ -371,6 +372,9 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             size_t stringLength = 0;
 
             while (peekAhead(buff, stringLength) != '"') {
+                if (peekAhead(buff, stringLength) == '\\')
+                    stringLength++;
+
                 stringLength++;
             }
 
@@ -439,7 +443,8 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
         }
 
         else {
-            printf("Error: Lexer: Discarding: %c at %s:%lu\n", buffer.bytes[buffer.pos], fileName, line);
+            logError("Lexer: Discarding invalid token start character: %c at %s:%lu\n",
+                buffer.bytes[buffer.pos], fileName, line);
 
             buffer.pos++;
             col++;
@@ -555,7 +560,7 @@ void printTokens(TokenList tokens) {
             printDebug("\\n\n");
         }
         else {
-            printf("type: %d\n", tok.type);
+            logFatal("Lexer: Invalid token type when printing: %ld\n", tok.type);
             assert(false);
         }
     }

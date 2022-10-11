@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <errno.h>
+#include <string.h>
 
 #include "buffer.h"
 #include "lexer.h"
@@ -8,12 +10,14 @@
 #include "rule.h"
 #include "debug.h"
 #include "config.h"
+#include "logger.h"
 
 int main(int argc, char **argv) {
 
     Config config = {0};
     if (!readConfigFile("config/config.cfg", &config)) {
-        printf("Error: couldn't read config file\n");
+        // TODO: Print out help info for making the config correct
+        logWarn("Config: Invalid configuration file\n");
     }
 
     Rule *rules = NULL;
@@ -29,7 +33,9 @@ int main(int argc, char **argv) {
 
         if (!openAndReadFileToBuffer(argv[i], &fileBuff)) {
             // There was an error reading the file
-            printf("Error: couldn't read file: %s\n", argv[i]);
+            char *fileError = strerror(errno);
+            logError("Main: Couldn't read source file: %s with error: %s\n    Continuing\n",
+                argv[i], fileError);
             continue;
         }
 
