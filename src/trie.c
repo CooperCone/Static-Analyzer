@@ -1,5 +1,7 @@
 #include "trie.h"
 
+#include "logger.h"
+
 #include <stdio.h>
 
 size_t trieCharToIdx(char c) {
@@ -26,7 +28,7 @@ void trie_addString(Trie *trie, char *str) {
 
     size_t idx = trieCharToIdx(*str);
     if (idx == -1) {
-        printf("Unknown trie char: %c\n", *str);
+        logWarn("Trie: Unknown char: %c\n", *str);
         return;
     }
 
@@ -45,7 +47,7 @@ bool trie_match(Trie *trie, char *str) {
 
     size_t idx = trieCharToIdx(*str);
     if (idx == -1) {
-        printf("Error: Invalid trie char: %c\n", *str);
+        logWarn("Trie: Invalid char: %c\n", *str);
         return false;
     }
 
@@ -64,7 +66,7 @@ bool trie_matchEarlyTerm(Trie *trie, char *str) {
 
     size_t idx = trieCharToIdx(*str);
     if (idx == -1) {
-        printf("Error: Invalid trie char: %c\n", *str);
+        logWarn("Trie: Invalid char: %c\n", *str);
         return false;
     }
 

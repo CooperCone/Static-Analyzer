@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "trie.h"
-
+#include "logger.h"
 #include "generalRules.h"
 
 #define TermColorRed "\033[0;31m"
@@ -25,16 +25,15 @@ void findRuleIgnorePaths(Config config) {
         if (strcasecmp(value.mapKey, "ignorePaths") != 0)
             continue;
 
-        // TODO: Move this stuff into the config value list
         if (value.mapValue->type != ConfigValue_List) {
-            printf("Config: Expected ignorePaths value to be a list\n");
+            logError("Config: Expected ignorePaths value to be a list\n");
             continue;
         }
 
         ConfigValue *paths = value.mapValue;
         for (int ii = 0; ii < paths->listSize; ii++) {
             if (paths->listValues[ii].type != ConfigValue_String) {
-                printf("Config: Expected ignorePaths inner value to be a string\n");
+                logError("Config: Expected ignorePaths inner value to be a string\n");
                 continue;
             }
 

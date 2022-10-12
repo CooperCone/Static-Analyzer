@@ -1,13 +1,7 @@
 Version 1.0:
 - Better logging system
-    - Replace all logging in files
-        - Rule
-        - Trie
-    - Add in severity
     - Add in printing out to files too
-- Set up config contracts and ease of use
 - Memory management
-- Determine how to run preprocessor
 - Parser resilience tests round 2
 - Security audit
 
@@ -42,3 +36,8 @@ Preprocess files
 Convert CST to AST
 
 Make lexer handle errors much better
+
+3 types of output
+- Output
+- Debug
+- Log
