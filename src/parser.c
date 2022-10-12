@@ -11,18 +11,18 @@
 
 typedef struct {
     size_t numTypedefs;
-    char **typedefNames;
+    String *typedefNames;
 } TypedefTable;
 
-bool typedefTable_find(TypedefTable table, char *name) {
+bool typedefTable_find(TypedefTable table, String name) {
     for (size_t i = 0; i < table.numTypedefs; i++) {
-        if (strcmp(table.typedefNames[i], name) == 0)
+        if (astr_cmp(table.typedefNames[i], name))
             return true;
     }
     return false;
 }
 
-void typedefTable_add(TypedefTable *table, char *name) {
+void typedefTable_add(TypedefTable *table, String name) {
     ArrayAppend(table->typedefNames, table->numTypedefs, name);
 }
 
@@ -366,7 +366,11 @@ ParseRes parseGenericSelection(TokenList *tokens, GenericSelection *generic) {
 
 ParseRes parsePrimaryExpr(TokenList *tokens, PrimaryExpr *primary) {
     if (peekTok(tokens).type == Token_ConstString) {
-        Token tok = consumeTok(tokens);
+        // TODO: Handle this correctly. We currently throw away all
+        // but the last strings
+        Token tok = {0};
+        while (peekTok(tokens).type == Token_ConstString)
+            tok = consumeTok(tokens);
 
         primary->type = PrimaryExpr_String;
         primary->string = tok.constString;
@@ -2686,7 +2690,7 @@ ParseRes parseInitDeclaratorList(TokenList *tokens, InitDeclaratorList *initList
     return (ParseRes){ .success = true };
 }
 
-char *directDeclarator_getName(DirectDeclarator decl) {
+String directDeclarator_getName(DirectDeclarator decl) {
     if (decl.type == DirectDeclarator_Ident)
         return decl.ident;
     else
@@ -2752,8 +2756,8 @@ ParseRes parseDeclaration(TokenList *tokens, Declaration *outDef) {
     // Now that we know we have a typedef, add all the names
     for (size_t i = 0; i < initList.numInitDeclarators; i++) {
         InitDeclarator decl = initList.initDeclarators[i];
-        char *name = directDeclarator_getName(decl.decl.directDeclarator);
-        if (name != NULL) {
+        String name = directDeclarator_getName(decl.decl.directDeclarator);
+        if (name.length > 0) {
             typedefTable_add(&g_typedefTable, name);
         }
     }
@@ -3399,7 +3403,7 @@ ParseRes parseExternalDecl(TokenList *tokens, ExternalDecl *outDecl) {
 }
 
 bool parseTokens(TokenList *tokens, TranslationUnit *outUnit) {
-    ArrayAppend(g_typedefTable.typedefNames, g_typedefTable.numTypedefs, "__builtin_va_list");
+    ArrayAppend(g_typedefTable.typedefNames, g_typedefTable.numTypedefs, astr("__builtin_va_list"));
 
     tokens->pos = 0;
 

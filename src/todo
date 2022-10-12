@@ -1,7 +1,9 @@
 Version 1.0:
 - Better logging system
     - Add in printing out to files too
+- String stuff
 - Memory management
+- Get more hardcore about the numeric tokenization
 - Parser resilience tests round 2
 - Security audit
 

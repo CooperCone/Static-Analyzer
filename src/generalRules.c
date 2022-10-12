@@ -85,6 +85,8 @@ void rule_1_3_b(Rule rule, RuleContext context) {
             }
         }
     }
+
+    free(braceStack);
 }
 
 // FIXME: Rules 1.7.a and 1.7.b are pretty much identical,

@@ -180,11 +180,11 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
                 commentLength++;
             }
 
-            char *commentStr = NULL;
-            consumeAndCopyOut(buff, commentLength, &commentStr);
-            
             tok.type = Token_Comment;
-            tok.comment = commentStr;
+            tok.comment = (String) {
+                .str = buff->bytes + buff->pos,
+                .length = commentLength
+            };
 
             col += commentLength;
 
@@ -229,11 +229,11 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
                 whitespaceLen++;
             }
 
-            char *whitespace = NULL;
-            consumeAndCopyOut(buff, whitespaceLen, &whitespace);
-
             tok.type = Token_Whitespace;
-            tok.whitespace = whitespace;
+            tok.whitespace = (String) {
+                .str = buff->bytes + buff->pos,
+                .length = whitespaceLen
+            };
 
             col += whitespaceLen;
 
@@ -308,11 +308,11 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
                 identLength++;
             }
 
-            char *ident = NULL;
-            consumeAndCopyOut(buff, identLength, &ident);
-
             tok.type = Token_Ident;
-            tok.ident = ident;
+            tok.ident = (String) {
+                .str = buff->bytes + buff->pos,
+                .length = identLength
+            };
 
             col += identLength;
         }
@@ -378,26 +378,17 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
                 stringLength++;
             }
 
-            char *str = NULL;
-            consumeAndCopyOut(buff, stringLength, &str);
-
             tok.type = Token_ConstString;
-            tok.constString = str;
+            tok.constString = (String) {
+                .str = buff->bytes + buff->pos,
+                .length = stringLength
+            };
 
             buffer.pos += 1; // Get the last "
             col += stringLength + 2; // 2 so we also get the first one
 
-            // If head of tokens is a ConstString, append to it
-            if (outTokens->tokens[outTokens->numTokens - 1].type == Token_ConstString) {
-                Token *strTok = outTokens->tokens + outTokens->numTokens - 1;
-                char *newStr = malloc(stringLength + strlen(strTok->constString));
-                strcpy(newStr, strTok->constString);
-                strcat(newStr, str);
-                free(str);
-                free(strTok->constString);
-                strTok->constString = newStr;
-                continue;
-            }
+            // TODO: Should we handle strings next to each other here?
+            // We currently do it in the parser
         }
         // TODO: Prefix
         // TODO: Suffix
@@ -408,8 +399,11 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
                 wholeLen++;
             }
 
-            char *wholeStr = NULL;
-            consumeAndCopyOut(buff, wholeLen, &wholeStr);
+            tok.type = Token_ConstNumeric;
+            tok.numericWhole = (String) {
+                .str = buff->bytes + buff->pos,
+                .length = wholeLen
+            };
 
             col += wholeLen;
 
@@ -418,8 +412,6 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
                 // TODO: Handle Floats
             }
 
-            tok.type = Token_ConstNumeric;
-            tok.numericWhole = wholeStr;
         }
         else if (peek(buff) == '\'') {
             size_t length = 1;
@@ -433,13 +425,13 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
 
             length++;
 
-            char *str = NULL;
-            consumeAndCopyOut(buff, length, &str);
+            tok.type = Token_ConstNumeric;
+            tok.numericWhole = (String) {
+                .str = buff->bytes + buff->pos,
+                .length = length
+            };
 
             col += length;
-
-            tok.type = Token_ConstNumeric;
-            tok.numericWhole = str;
         }
 
         else {

@@ -3,6 +3,7 @@
 #include <stdbool.h>
 
 #include "lexer.h"
+#include "astring.h"
 
 struct ConditionalExpr;
 struct InitializerList;
@@ -26,7 +27,7 @@ typedef struct {
     DesignatorType type;
     union {
         struct ConditionalExpr *constantExpr; // With constraints?
-        char *ident;
+        String ident;
     };
 } Designator;
 
@@ -80,7 +81,7 @@ typedef enum {
 // FIXME: Should we have real data for the different constants?
 typedef struct {
     ConstantType type;
-    char *data;
+    String data;
 } ConstantExpr;
 
 typedef enum {
@@ -96,9 +97,9 @@ typedef enum {
 typedef struct {
     PrimaryExprType type;
     union {
-        char *ident;
+        String ident;
         ConstantExpr constant;
-        char *string;
+        String string;
         struct Expr *expr;
         GenericSelection genericSelection;
     };
@@ -126,8 +127,8 @@ typedef struct {
             bool callHasEmptyArgs;
             ArgExprList callExprs;
         };
-        char *dotIdent;
-        char *arrowIdent;
+        String dotIdent;
+        String arrowIdent;
     };
 } PostfixOp;
 
@@ -429,7 +430,7 @@ typedef struct AbstractDeclarator {
 
 typedef struct {
     size_t numIdents;
-    char **idents;
+    String *idents;
 } IdentifierList;
 
 typedef enum {
@@ -479,7 +480,7 @@ typedef enum {
 typedef struct {
     DirectDeclaratorType type;
     union {
-        char *ident;
+        String ident;
         struct Declarator *declarator;
     };
 
@@ -538,7 +539,7 @@ typedef struct {
 
 typedef struct {
     ConditionalExpr constantExpr;
-    char *stringLiteral;
+    String stringLiteral;
 } StaticAssertDeclaration;
 
 typedef enum {
@@ -566,14 +567,14 @@ typedef enum {
 typedef struct {
     StructOrUnion structOrUnion;
     bool hasIdent;
-    char *ident;
+    String ident;
     bool hasStructDeclarationList;
     size_t numStructDecls;
     StructDeclaration *structDeclarations;
 } StructOrUnionSpecifier;
 
 typedef struct {
-    char *constantIdent;
+    String constantIdent;
     bool hasConstExpr;
     ConditionalExpr constantExpr;
 } Enumerator;
@@ -585,7 +586,7 @@ typedef struct {
 
 typedef struct {
     bool hasIdent;
-    char *ident;
+    String ident;
     bool hasEnumeratorList;
     EnumeratorList enumeratorList;
 } EnumSpecifier;
@@ -615,7 +616,7 @@ typedef struct TypeSpecifier {
         TypeName atomicName;
         StructOrUnionSpecifier structOrUnion;
         EnumSpecifier enumSpecifier;
-        char *typedefName;
+        String typedefName;
     };
 } TypeSpecifier;
 
@@ -707,7 +708,7 @@ typedef enum {
 typedef struct {
     LabeledStatementType type;
     union {
-        char *ident;
+        String ident;
         ConditionalExpr caseConstExpr;
     };
     struct Statement *stmt;
@@ -778,7 +779,7 @@ typedef enum {
 typedef struct {
     JumpStatementType type;
     union {
-        char *gotoIdent;
+        String gotoIdent;
         struct {
             bool returnHasExpr;
             Expr returnExpr;

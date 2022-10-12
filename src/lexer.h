@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "buffer.h"
+#include "astring.h"
 
 typedef enum {
     Token_ConstNumeric = 256,
@@ -94,15 +95,15 @@ typedef struct {
     uint64_t col;
     char *fileName;
     union {
-        char *ident;
-        char *whitespace;
-        char *comment;
-        char *constString;
+        String ident;
+        String whitespace;
+        String comment;
+        String constString;
         struct {
-            char *numericWhole;
-            char *numericDecimal;
-            char *numericSuffix;
-            char *numericPrefix;
+            String numericWhole;
+            String numericDecimal;
+            String numericSuffix;
+            String numericPrefix;
         };
     };
 } Token;
@@ -112,6 +113,8 @@ typedef struct {
     size_t pos;
     Token *tokens;
 } TokenList;
+
+void tokenList_cleanup(TokenList tokens);
 
 typedef struct {
     char *fileName;
