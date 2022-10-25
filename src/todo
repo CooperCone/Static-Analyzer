@@ -10,6 +10,7 @@ Version 1.0:
 Parser:
 - Make better error messages
     - Take the best one of all the optional statements
+- Make CST simpler?
 
 Usage:
 - my command line args
