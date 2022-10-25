@@ -16,3 +16,5 @@ typedef struct String {
 
 String astr(char *str);
 bool astr_cmp(String left, String right);
+
+#define astr_format(astr) (int)(astr).length, (astr).str

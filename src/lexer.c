@@ -187,6 +187,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             };
 
             col += commentLength;
+            buff->pos += commentLength;
 
             continue;
         }
@@ -236,6 +237,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             };
 
             col += whitespaceLen;
+            buff->pos += whitespaceLen;
 
             // FIXME: How should we process whitespace?
             continue;
@@ -315,6 +317,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             };
 
             col += identLength;
+            buff->pos += identLength;
         }
 
         // Operators
@@ -384,7 +387,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
                 .length = stringLength
             };
 
-            buffer.pos += 1; // Get the last "
+            buffer.pos += 1 + stringLength; // Get the last "
             col += stringLength + 2; // 2 so we also get the first one
 
             // TODO: Should we handle strings next to each other here?
@@ -406,6 +409,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             };
 
             col += wholeLen;
+            buff->pos += wholeLen;
 
             if (peek(buff) == '.') {
                 assert(false);
@@ -432,6 +436,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             };
 
             col += length;
+            buff->pos += length;
         }
 
         else {
@@ -534,16 +539,16 @@ void printTokens(TokenList tokens) {
         printableOp(Token_NEqOp, "!=")
 
         else if (tok.type == Token_Ident) {
-            printDebug("Ident: %s\n", tok.ident);
+            printDebug("Ident: %.*s\n", astr_format(tok.ident));
         }
         else if (tok.type == Token_Comment) {
-            printDebug("%s\n", tok.comment);
+            printDebug("%.*s\n", astr_format(tok.comment));
         }
         else if (tok.type == Token_ConstString) {
-            printDebug("String: %s\n", tok.constString);
+            printDebug("String: %.*s\n", astr_format(tok.constString));
         }
         else if (tok.type == Token_ConstNumeric) {
-            printDebug("Number: %s\n", tok.numericWhole);
+            printDebug("Number: %.*s\n", astr_format(tok.numericWhole));
         }
         else if (tok.type == Token_Whitespace) {
             printDebug("Whitespace\n");

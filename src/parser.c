@@ -8,25 +8,23 @@
 #include "logger.h"
 #include "array.h"
 #include "debug.h"
+#include "linkedList.h"
 
-typedef struct {
-    size_t numTypedefs;
-    String *typedefNames;
-} TypedefTable;
+static SLList g_typedefTable;
 
-bool typedefTable_find(TypedefTable table, String name) {
-    for (size_t i = 0; i < table.numTypedefs; i++) {
-        if (astr_cmp(table.typedefNames[i], name))
+bool typedefTable_find(SLList table, String name) {
+    sll_foreach(table, node) {
+        String *tableName = slNode_getData(node);
+        if (astr_cmp(*tableName, name))
             return true;
     }
+
     return false;
 }
 
-void typedefTable_add(TypedefTable *table, String name) {
-    ArrayAppend(table->typedefNames, table->numTypedefs, name);
+void typedefTable_add(SLList *table, String name) {
+    sll_appendLocal(table, name);
 }
-
-static TypedefTable g_typedefTable;
 
 // CLEANUP: A lot of this can be combined
 // - need a pass, fail function
@@ -102,10 +100,7 @@ ParseRes parseArgExprList(TokenList *tokens, ArgExprList *argExprList) {
 
         hasComma = consumeIfTok(tokens, ',');
 
-        ArrayAppend(argExprList->argExprs,
-            argExprList->argExprLength,
-            expr);
-
+        sll_appendLocal(&argExprList->list, expr);
     } while (hasComma);
 
     return (ParseRes){ .success = true };
@@ -168,10 +163,7 @@ ParseRes parseDesignation(TokenList *tokens, Designation *designation) {
             break;
         }
 
-        ArrayAppend(designation->designators,
-            designation->numDesignators,
-            designator);
-
+        sll_appendLocal(&(designation->list), designator);
     } while (res.success);
 
     if (!consumeIfTok(tokens, '=')) {
@@ -252,7 +244,7 @@ ParseRes parseInitializerList(TokenList *tokens, InitializerList *list) {
             .initializer = initializer
         };
 
-        ArrayAppend(list->initializers, list->numInitializers, wholeInitializer);
+        sll_appendLocal(&(list->list), wholeInitializer);
 
         // Parse a ,
         hasComma = consumeIfTok(tokens, ',');
@@ -348,7 +340,7 @@ ParseRes parseGenericSelection(TokenList *tokens, GenericSelection *generic) {
             return res;
         }
 
-        ArrayAppend(generic->associations, generic->numAssociations, association);
+        sll_appendLocal(&(generic->associations), association);
 
         // Continue if there's a comma
         hasComma = consumeIfTok(tokens, ',');
@@ -585,9 +577,7 @@ PostfixExpr_AfterPrimaryExpr:
             break;
         }
 
-        ArrayAppend(postfixExpr->postfixOps,
-            postfixExpr->numPostfixOps,
-            op);
+        sll_appendLocal(&(postfixExpr->postfixOps), op);
     } while (res.success);
 
     return (ParseRes){ .success = true };
@@ -833,9 +823,7 @@ ParseRes parseMultiplicativeExpr(TokenList *tokens, MultiplicativeExpr *multipli
             .expr = cast
         };
 
-        ArrayAppend(multiplicativeExpr->postExprs,
-            multiplicativeExpr->numPostExprs,
-            post);
+        sll_appendLocal(&(multiplicativeExpr->postExprs), post);
     }
 
     return (ParseRes){ .success = true };
@@ -869,9 +857,7 @@ ParseRes parseAdditiveExpr(TokenList *tokens, AdditiveExpr *additiveExpr) {
             .expr = multiplicative
         };
 
-        ArrayAppend(additiveExpr->postExprs,
-            additiveExpr->numPostExprs,
-            post);
+        sll_appendLocal(&(additiveExpr->postExprs), post);
     }
 
     return (ParseRes){ .success = true };
@@ -905,9 +891,7 @@ ParseRes parseShiftExpr(TokenList *tokens, ShiftExpr *shiftExpr) {
             .expr = additive
         };
 
-        ArrayAppend(shiftExpr->postExprs,
-            shiftExpr->numPostExprs,
-            post);
+        sll_appendLocal(&(shiftExpr->postExprs), post);
     }
 
     return (ParseRes){ .success = true };
@@ -946,9 +930,7 @@ ParseRes parseRelationalExpr(TokenList *tokens, RelationalExpr *relExpr) {
             .expr = shift
         };
 
-        ArrayAppend(relExpr->postExprs,
-            relExpr->numPostExprs,
-            post);
+        sll_appendLocal(&(relExpr->postExprs), post);
     }
 
     return (ParseRes){ .success = true };
@@ -982,9 +964,7 @@ ParseRes parseEqualityExpr(TokenList *tokens, EqualityExpr *eqExpr) {
             .expr = rel,
         };
 
-        ArrayAppend(eqExpr->postExprs,
-            eqExpr->numPostExprs,
-            post);
+        sll_appendLocal(&(eqExpr->postExprs), post);
     }
 
     return (ParseRes){ .success = true };
@@ -1002,10 +982,7 @@ ParseRes parseAndExpr(TokenList *tokens, AndExpr *andExpr) {
 
         foundAndOp = consumeIfTok(tokens, '&');
 
-        ArrayAppend(andExpr->exprs,
-            andExpr->numExprs,
-            eqExpr);
-
+        sll_appendLocal(&(andExpr->list), eqExpr);
     } while (foundAndOp);
 
     return (ParseRes){ .success = true };
@@ -1023,10 +1000,7 @@ ParseRes parseExclusiveOrExpr(TokenList *tokens, ExclusiveOrExpr *exclusiveOr) {
 
         foundOrOp = consumeIfTok(tokens, '^');
 
-        ArrayAppend(exclusiveOr->exprs,
-            exclusiveOr->numExprs,
-            andExpr);
-
+        sll_appendLocal(&(exclusiveOr->list), andExpr);
     } while (foundOrOp);
 
     return (ParseRes){ .success = true };
@@ -1044,10 +1018,7 @@ ParseRes parseInclusiveOrExpr(TokenList *tokens, InclusiveOrExpr *inclusiveOr) {
 
         foundOrOp = consumeIfTok(tokens, '|');
 
-        ArrayAppend(inclusiveOr->exprs,
-            inclusiveOr->numExprs,
-            orExpr);
-
+        sll_appendLocal(&(inclusiveOr->list), orExpr);
     } while (foundOrOp);
 
     return (ParseRes){ .success = true };
@@ -1065,10 +1036,7 @@ ParseRes parseLogicalAndExpr(TokenList *tokens, LogicalAndExpr *logicalAnd) {
 
         foundAndOp = consumeIfTok(tokens, Token_LogAndOp);
 
-        ArrayAppend(logicalAnd->exprs,
-            logicalAnd->numExprs,
-            orExpr);
-
+        sll_appendLocal(&(logicalAnd->list), orExpr);
     } while (foundAndOp);
 
     return (ParseRes){ .success = true };
@@ -1086,10 +1054,7 @@ ParseRes parseLogicalOrExpr(TokenList *tokens, LogicalOrExpr *logicalOr) {
 
         foundOrOp = consumeIfTok(tokens, Token_LogOrOp);
 
-        ArrayAppend(logicalOr->exprs,
-            logicalOr->numExprs,
-            andExpr);
-
+        sll_appendLocal(&(logicalOr->list), andExpr);
     } while (foundOrOp);
 
     return (ParseRes){ .success = true };
@@ -1200,9 +1165,7 @@ ParseRes parseAssignExpr(TokenList *tokens, AssignExpr *assignExpr) {
 
         AssignPrefix leftExpr = { unaryExpr, op };
 
-        ArrayAppend(assignExpr->leftExprs,
-            assignExpr->numAssignOps,
-            leftExpr);
+        sll_appendLocal(&(assignExpr->leftExprs), leftExpr);
     } while (assignRes.success);
 
     // Parse a conditional expr
@@ -1270,14 +1233,14 @@ ParseRes parseExpr(TokenList *tokens, Expr *expr) {
             break;
         }
 
-        ArrayAppend(expr->exprs, expr->numExprs, inner);
+        sll_appendLocal(&(expr->list), inner);
 
         hasComma = consumeIfTok(tokens, ',');
 
     } while(hasComma);
 
 
-    if (expr->numExprs == 0) {
+    if (expr->list.size == 0) {
         return (ParseRes) {
             .success = false,
             .failMessage = "Expr needs at least one inner expr"
@@ -1345,7 +1308,7 @@ ParseRes parseParameterTypeList(TokenList *tokens, ParameterTypeList *list) {
             };
         }
 
-        ArrayAppend(list->paramDecls, list->numParamDecls, decl);
+        sll_appendLocal(&(list->paramDecls), decl);
 
         hasComma = consumeIfTok(tokens, ',');
 
@@ -1399,9 +1362,7 @@ ParseRes parsePostDirectAbstractDeclarator(TokenList *tokens,
                 break;
             }
 
-            ArrayAppend(postDeclarator->bracketTypeQualifiers,
-                postDeclarator->bracketTypeQualifierListLength,
-                typeQualifier);
+            sll_appendLocal(&(postDeclarator->bracketTypeQualifiers), typeQualifier);
         } while (res.success);
 
         // Look for middle static
@@ -1433,7 +1394,7 @@ ParseRes parsePostDirectAbstractDeclarator(TokenList *tokens,
                     .failMessage = "Direct abstract declarator can't have 2 statics in brackets"
                 };
             }
-            if (postDeclarator->bracketTypeQualifierListLength == 0 &&
+            if (postDeclarator->bracketTypeQualifiers.size == 0 &&
                 !postDeclarator->bracketHasAssignmentExpr)
             {
                 return (ParseRes) {
@@ -1529,13 +1490,12 @@ PostAbstractDeclaratorDone:
             break;
         }
 
-        ArrayAppend(directDeclarator->postDirectAbstractDeclarators,
-            directDeclarator->numPostDirectAbstractDeclarators,
+        sll_appendLocal(&(directDeclarator->postDirectAbstractDeclarators),
             postDeclarator);
     } while (res.success);
 
     if (!directDeclarator->hasAbstractDeclarator &&
-        directDeclarator->numPostDirectAbstractDeclarators == 0)
+        directDeclarator->postDirectAbstractDeclarators.size == 0)
     {
         return (ParseRes) {
             .success = false,
@@ -1571,11 +1531,11 @@ ParseRes parsePointer(TokenList *tokens, Pointer *pointer) {
             break;
         }
 
-        ArrayAppend(pointer->typeQualifiers, pointer->numTypeQualifiers, typeQualifier);
+        sll_appendLocal(&(pointer->typeQualifiers), typeQualifier);
     } while (typeQualifierRes.success);
 
     // If no type qualifiers, cannot have trailing pointer
-    if (pointer->numTypeQualifiers == 0) {
+    if (pointer->typeQualifiers.size == 0) {
         pointer->hasPtr = false;
         return (ParseRes){ .success = true };
     }
@@ -1651,7 +1611,7 @@ ParseRes parseIdentifierList(TokenList *tokens, IdentifierList *list) {
         }
 
         Token tok = consumeTok(tokens);
-        ArrayAppend(list->idents, list->numIdents, tok.ident);
+        sll_appendLocal(&(list->list), tok.ident);
 
         hasComma = consumeIfTok(tokens, Token_Ident);
 
@@ -1701,8 +1661,7 @@ ParseRes parsePostDirectDeclarator(TokenList *tokens, PostDirectDeclarator *post
                     break;
                 }
 
-                ArrayAppend(postDeclarator->bracketTypeQualifiers,
-                    postDeclarator->bracketNumTypeQualifiers,
+                sll_appendLocal(&(postDeclarator->bracketTypeQualifiers),
                     typeQualifier);
             } while (res.success);
 
@@ -1712,7 +1671,7 @@ ParseRes parsePostDirectDeclarator(TokenList *tokens, PostDirectDeclarator *post
                 // star after
                 // ] after star
             if (!postDeclarator->bracketHasInitialStatic &&
-                postDeclarator->bracketNumTypeQualifiers > 0 &&
+                postDeclarator->bracketTypeQualifiers.size > 0 &&
                 peekAheadTok(tokens, 0).type == '*' &&
                 peekAheadTok(tokens, 1).type == ']')
             {
@@ -1759,7 +1718,7 @@ ParseRes parsePostDirectDeclarator(TokenList *tokens, PostDirectDeclarator *post
                 }
 
                 // must have at least one of type qualifiers or assignment expr
-                if (postDeclarator->bracketNumTypeQualifiers == 0 &&
+                if (postDeclarator->bracketTypeQualifiers.size == 0 &&
                     !postDeclarator->bracketHasAssignExpr)
                 {
                     return (ParseRes) {
@@ -1886,10 +1845,8 @@ ParseRes parseDirectDeclarator(TokenList *tokens, DirectDeclarator *directDeclar
             break;
         }
 
-        ArrayAppend(directDeclarator->postDirectDeclarators,
-            directDeclarator->numPostDirectDeclarators,
+        sll_appendLocal(&(directDeclarator->postDirectDeclarators),
             postDeclarator);
-
     } while(postDirectRes.success);
 
     return (ParseRes) { .success = true };
@@ -1990,8 +1947,7 @@ ParseRes parseSpecifierQualifierList(TokenList *tokens,
     }
 
     do {
-        ArrayAppend(outList->specifierQualifiers,
-            outList->numSpecifierQualifiers, specifierQualifier);
+        sll_appendLocal(&(outList->list), specifierQualifier);
         res = parseSpecifierQualifier(tokens, &specifierQualifier);
     } while (res.success);
 
@@ -2098,6 +2054,10 @@ ParseRes parseStaticAssertDeclaration(TokenList *tokens, StaticAssertDeclaration
         };
     }
 
+    // FIXME: Handle this in the lexer
+    while (peekTok(tokens).type == Token_ConstString)
+        consumeTok(tokens);
+
     Token string = consumeTok(tokens);
 
     if (!consumeIfTok(tokens, ')')) {
@@ -2155,9 +2115,7 @@ ParseRes parseStructDeclaratorList(TokenList *tokens, StructDeclaratorList *decl
         if (!res.success)
             return res;
 
-        ArrayAppend(declList->structDeclarators,
-            declList->numStructDeclarators,
-            decl);
+        sll_appendLocal(&(declList->list), decl);
 
         hasComma = consumeIfTok(tokens, ',');
     } while(hasComma);
@@ -2240,9 +2198,7 @@ ParseRes parseStructOrUnionSpecifier(TokenList *tokens, StructOrUnionSpecifier *
             if (!declRes.success)
                 return declRes;
             
-            ArrayAppend(structOrUnion->structDeclarations,
-                structOrUnion->numStructDecls,
-                decl);
+            sll_appendLocal(&(structOrUnion->structDeclarations), decl);
         }
 
         if (!consumeIfTok(tokens, '}')) {
@@ -2294,8 +2250,8 @@ ParseRes parseEnumeratorList(TokenList *tokens, EnumeratorList *list) {
             return enumRes;
         
         hasComma = consumeIfTok(tokens, ',');
-    
-        ArrayAppend(list->enumerators, list->numEnumerators, enumerator);
+
+        sll_appendLocal(&(list->list), enumerator);
 
         foundEndBlock = peekTok(tokens).type == '}';
 
@@ -2599,7 +2555,7 @@ ParseRes parseDeclarationSpecifierList(TokenList *tokens,
     }
 
     do {
-        ArrayAppend(outList->specifiers, outList->numSpecifiers, specifier);
+        sll_appendLocal(&(outList->list), specifier);
         res = parseDeclarationSpecifier(tokens, &specifier);
     } while (res.success);
 
@@ -2661,6 +2617,11 @@ ParseRes parseInitDeclaratorList(TokenList *tokens, InitDeclaratorList *initList
                 };
             }
 
+            // FIXME: This probably should be handled in lexer
+            // Consume adjacent strings
+            while (peekTok(tokens).type == Token_ConstString)
+                consumeTok(tokens);
+
             // Look for )
             if (!consumeIfTok(tokens, ')')) {
                 return (ParseRes) {
@@ -2670,9 +2631,7 @@ ParseRes parseInitDeclaratorList(TokenList *tokens, InitDeclaratorList *initList
             }
         }
 
-        ArrayAppend(initList->initDeclarators,
-            initList->numInitDeclarators,
-            decl);
+        sll_appendLocal(&(initList->list), decl);
 
         // Parse a ,
         hasComma = consumeIfTok(tokens, ',');
@@ -2680,7 +2639,7 @@ ParseRes parseInitDeclaratorList(TokenList *tokens, InitDeclaratorList *initList
     } while (hasComma);
 
     // Must have at least one
-    if (initList->numInitDeclarators == 0) {
+    if (initList->list.size == 0) {
         return (ParseRes) {
             .success = false,
             .failMessage = "Expected init declarators in init declarator list"
@@ -2743,20 +2702,20 @@ ParseRes parseDeclaration(TokenList *tokens, Declaration *outDef) {
 
     // If starts with typedef, look through init declarator list and
     // pull out typedef names
-    if (specifiers.numSpecifiers == 0)
+    if (specifiers.list.size == 0)
         goto Post_Typedef_Ident;
 
-    DeclarationSpecifier declSpec = specifiers.specifiers[0];
-    if (declSpec.type != DeclarationSpecifier_StorageClass)
+    DeclarationSpecifier *declSpec = slNode_getData(specifiers.list.head);
+    if (declSpec->type != DeclarationSpecifier_StorageClass)
         goto Post_Typedef_Ident;
 
-    if (declSpec.storageClass != StorageClass_Typedef)
+    if (declSpec->storageClass != StorageClass_Typedef)
         goto Post_Typedef_Ident;
 
     // Now that we know we have a typedef, add all the names
-    for (size_t i = 0; i < initList.numInitDeclarators; i++) {
-        InitDeclarator decl = initList.initDeclarators[i];
-        String name = directDeclarator_getName(decl.decl.directDeclarator);
+    sll_foreach(initList.list, node) {
+        InitDeclarator *decl = slNode_getData(node);
+        String name = directDeclarator_getName(decl->decl.directDeclarator);
         if (name.length > 0) {
             typedefTable_add(&g_typedefTable, name);
         }
@@ -3282,12 +3241,11 @@ ParseRes parseBlockItemList(TokenList *tokens, BlockItemList *list) {
             break;
         }
 
-        ArrayAppend(list->blockItems, list->numBlockItems, item);
-
+        sll_appendLocal(&(list->list), item);
     } while(blockItemRes.success);
 
     // Make sure we have at least one block item
-    if (list->numBlockItems == 0) {
+    if (list->list.size == 0) {
         return (ParseRes) {
             .success = false,
             .failMessage = "Expected at least one block item in a block item list"
@@ -3358,10 +3316,7 @@ ParseRes parseFuncDef(TokenList *tokens, FuncDef *outDef) {
             break;
         }
 
-        ArrayAppend(outDef->declarations,
-            outDef->numDeclarations,
-            declaration);
-
+        sll_appendLocal(&(outDef->declarations), declaration);
     } while(listRes.success);
 
     // Parse Compound Statement
@@ -3403,7 +3358,7 @@ ParseRes parseExternalDecl(TokenList *tokens, ExternalDecl *outDecl) {
 }
 
 bool parseTokens(TokenList *tokens, TranslationUnit *outUnit) {
-    ArrayAppend(g_typedefTable.typedefNames, g_typedefTable.numTypedefs, astr("__builtin_va_list"));
+    typedefTable_add(&g_typedefTable, astr("__builtin_va_list"));
 
     tokens->pos = 0;
 
@@ -3418,7 +3373,8 @@ bool parseTokens(TokenList *tokens, TranslationUnit *outUnit) {
             logError("Parser: %s:%ld: %s\n  Current token position: %ld\n", tok.fileName, tok.line, res.failMessage, tokens->pos);
             return false;
         }
-        ArrayAppend(outUnit->decls, outUnit->numDecls, decl);
+
+        sll_appendLocal(&(outUnit->externalDecls), decl);
     }
 
     return true;
@@ -3452,15 +3408,16 @@ void printDesignator(Designator designator, uint64_t indent) {
     }
     else if (designator.type == Designator_Ident) {
         printIndent(indent);
-        printDebug("%s\n", designator.ident);
+        printDebug("%.*s\n", astr_format(designator.ident));
     }
 }
 
 void printDesignation(Designation desig, uint64_t indent) {
     printIndent(indent);
-    printDebug("Designation: %ld\n", desig.numDesignators);
-    for (size_t i = 0; i < desig.numDesignators; i++) {
-        printDesignator(desig.designators[i], indent + BaseIndent);
+    printDebug("Designation: %ld\n", desig.list.size);
+    sll_foreach(desig.list, node) {
+        Designator *designator = slNode_getData(node);
+        printDesignator(*designator, indent + BaseIndent);
     }
 }
 
@@ -3483,9 +3440,10 @@ void printDesignationAndInitializer(DesignationAndInitializer desig, uint64_t in
 
 void printInitializerList(InitializerList list, uint64_t indent) {
     printIndent(indent);
-    printDebug("Initializer List: %ld\n", list.numInitializers);
-    for (size_t i = 0; i < list.numInitializers; i++) {
-        printDesignationAndInitializer(list.initializers[i], indent + BaseIndent);
+    printDebug("Initializer List: %ld\n", list.list.size);
+    sll_foreach(list.list, node) {
+        DesignationAndInitializer *desig = slNode_getData(node);
+        printDesignationAndInitializer(*desig, indent + BaseIndent);
     }
 }
 
@@ -3508,24 +3466,25 @@ void printGenericSelection(GenericSelection generic, uint64_t indent) {
     printAssignExpr(*(generic.expr), indent + BaseIndent);
 
     printIndent(indent);
-    printDebug("Association List: %ld\n", generic.numAssociations);
-    for (size_t i = 0; i < generic.numAssociations; i++) {
-        printGenericAssociation(generic.associations[i], indent + BaseIndent);
+    printDebug("Association List: %ld\n", generic.associations.size);
+    sll_foreach(generic.associations, node) {
+        GenericAssociation *assoc = slNode_getData(node);
+        printGenericAssociation(*assoc, indent + BaseIndent);
     }
 }
 
 void printConstantExpr(ConstantExpr expr, uint64_t indent) {
     if (expr.type == Constant_Integer) {
         printIndent(indent);
-        printDebug("Int: %s\n", expr.data);
+        printDebug("Int: %.*s\n", astr_format(expr.data));
     }
     else if (expr.type == Constant_Character) {
         printIndent(indent);
-        printDebug("Char: %s\n", expr.data);
+        printDebug("Char: %.*s\n", astr_format(expr.data));
     }
     else if (expr.type == Constant_Float) {
         printIndent(indent);
-        printDebug("Float: %s\n", expr.data);
+        printDebug("Float: %.*s\n", astr_format(expr.data));
     }
     else {
         assert(false);
@@ -3535,14 +3494,14 @@ void printConstantExpr(ConstantExpr expr, uint64_t indent) {
 void printPrimaryExpr(PrimaryExpr expr, uint64_t indent) {
     if (expr.type == PrimaryExpr_Ident) {
         printIndent(indent);
-        printDebug("Ident: %s\n", expr.ident);
+        printDebug("Ident: %.*s\n", astr_format(expr.ident));
     }
     else if (expr.type == PrimaryExpr_Constant) {
         printConstantExpr(expr.constant, indent);
     }
     else if (expr.type == PrimaryExpr_String) {
         printIndent(indent);
-        printDebug("\"%s\"\n", expr.string);
+        printDebug("\"%.*s\"\n", astr_format(expr.string));
     }
     else if (expr.type == PrimaryExpr_FuncName) {
         printIndent(indent);
@@ -3567,9 +3526,10 @@ void printPrimaryExpr(PrimaryExpr expr, uint64_t indent) {
 
 void printArgExprList(ArgExprList args, uint64_t indent) {
     printIndent(indent);
-    printDebug("Arg Expr List: %ld\n", args.argExprLength);
-    for (size_t i = 0; i < args.argExprLength; i++) {
-        printAssignExpr(args.argExprs[i], indent + BaseIndent);
+    printDebug("Arg Expr List: %ld\n", args.list.size);
+    sll_foreach(args.list, node) {
+        AssignExpr *expr = slNode_getData(node);
+        printAssignExpr(*expr, indent + BaseIndent);
     }
 }
 
@@ -3600,11 +3560,11 @@ void printPostfixOp(PostfixOp op, uint64_t indent) {
     }
     else if (op.type == PostfixOp_Dot) {
         printIndent(indent);
-        printDebug(".%s\n", op.dotIdent);
+        printDebug(".%.*s\n", astr_format(op.dotIdent));
     }
     else if (op.type == PostfixOp_Arrow) {
         printIndent(indent);
-        printDebug("->%s\n", op.arrowIdent);
+        printDebug("->%.*s\n", astr_format(op.arrowIdent));
     }
     else if (op.type == PostfixOp_Inc) {
         printIndent(indent);
@@ -3630,8 +3590,9 @@ void printPostfixExpr(PostfixExpr expr, uint64_t indent) {
         assert(false);
     }
 
-    for (size_t i = 0; i < expr.numPostfixOps; i++) {
-        printPostfixOp(expr.postfixOps[i], indent);
+    sll_foreach(expr.postfixOps, node) {
+        PostfixOp *op = slNode_getData(node);
+        printPostfixOp(*op, indent);
     }
 }
 
@@ -3737,22 +3698,23 @@ void printCastExpr(CastExpr cast, uint64_t indent) {
 
 void printMultiplicativeExpr(MultiplicativeExpr expr, uint64_t indent) {
     printCastExpr(expr.baseExpr, indent);
-    for (size_t i = 0; i < expr.numPostExprs; i++) {
+    sll_foreach(expr.postExprs, node) {
+        MultiplicativePost *post = slNode_getData(node);
         printIndent(indent + BaseIndent);
 
-        if (expr.postExprs[i].op == Multiplicative_Mul) {
+        if (post->op == Multiplicative_Mul) {
             printDebug("*\n");
         }
-        else if (expr.postExprs[i].op == Multiplicative_Div) {
+        else if (post->op == Multiplicative_Div) {
             printDebug("/\n");
         }
-        else if (expr.postExprs[i].op == Multiplicative_Mod) {
+        else if (post->op == Multiplicative_Mod) {
             printDebug("%%\n");
         }
         else {
             assert(false);
         }
-        printCastExpr(expr.postExprs[i].expr, indent + BaseIndent);
+        printCastExpr(post->expr, indent + BaseIndent);
     }
 }
 
@@ -3761,92 +3723,101 @@ void printMultiplicativeExpr(MultiplicativeExpr expr, uint64_t indent) {
 // is an operation
 void printAdditiveExpr(AdditiveExpr expr, uint64_t indent) {
     printMultiplicativeExpr(expr.baseExpr, indent);
-    for (size_t i = 0; i < expr.numPostExprs; i++) {
+    sll_foreach(expr.postExprs, node) {
+        AdditivePost *post = slNode_getData(node);
         printIndent(indent + BaseIndent);
 
-        if (expr.postExprs[i].op == Additive_Add) {
+        if (post->op == Additive_Add) {
             printDebug("+\n");
         }
-        else if (expr.postExprs[i].op == Additive_Sub) {
+        else if (post->op == Additive_Sub) {
             printDebug("-\n");
         }
         else {
             assert(false);
         }
-        printMultiplicativeExpr(expr.postExprs[i].expr, indent + BaseIndent);
+        printMultiplicativeExpr(post->expr, indent + BaseIndent);
     }
 }
 
 void printShiftExpr(ShiftExpr expr, uint64_t indent) {
     printAdditiveExpr(expr.baseExpr, indent);
-    for (size_t i = 0; i < expr.numPostExprs; i++) {
-        if (i != expr.numPostExprs - 1) {
+    sll_foreach(expr.postExprs, node) {
+        ShiftPost *post = slNode_getData(node);
+        if (node->next != NULL) {
+        // if (i != expr.numPostExprs - 1) {
             printIndent(indent + BaseIndent);
 
-            if (expr.postExprs[i].op == Shift_Left) {
+            if (post->op == Shift_Left) {
                 printDebug("<<\n");
             }
-            else if (expr.postExprs[i].op == Shift_Right) {
+            else if (post->op == Shift_Right) {
                 printDebug(">>\n");
             }
             else {
                 assert(false);
             }
         }
-        printAdditiveExpr(expr.postExprs[i].expr, indent + BaseIndent);
+        printAdditiveExpr(post->expr, indent + BaseIndent);
     }
 }
 
 void printRelationalExpr(RelationalExpr expr, uint64_t indent) {
     printShiftExpr(expr.baseExpr, indent);
-    for (size_t i = 0; i < expr.numPostExprs; i++) {
-        if (i != expr.numPostExprs - 1) {
+    sll_foreach(expr.postExprs, node) {
+        RelationalPost *post = slNode_getData(node);
+        if (node->next != NULL) {
+        // if (i != expr.numPostExprs - 1) {
             printIndent(indent + BaseIndent);
 
-            if (expr.postExprs[i].op == Relational_Lt) {
+            if (post->op == Relational_Lt) {
                 printDebug("<\n");
             }
-            else if (expr.postExprs[i].op == Relational_Gt) {
+            else if (post->op == Relational_Gt) {
                 printDebug(">\n");
             }
-            else if (expr.postExprs[i].op == Relational_LEq) {
+            else if (post->op == Relational_LEq) {
                 printDebug("<=\n");
             }
-            else if (expr.postExprs[i].op == Relational_GEq) {
+            else if (post->op == Relational_GEq) {
                 printDebug(">=\n");
             }
             else {
                 assert(false);
             }
         }
-        printShiftExpr(expr.postExprs[i].expr, indent + BaseIndent);
+        printShiftExpr(post->expr, indent + BaseIndent);
     }
 }
 
 void printEqualityExpr(EqualityExpr expr, uint64_t indent) {
     printRelationalExpr(expr.baseExpr, indent);
-    for (size_t i = 0; i < expr.numPostExprs; i++) {
-        if (i != expr.numPostExprs - 1) {
+    sll_foreach(expr.postExprs, node) {
+        EqualityPost *post = slNode_getData(node);
+        if (node->next != NULL) {
+        // if (i != expr.numPostExprs - 1) {
             printIndent(indent + BaseIndent);
 
-            if (expr.postExprs[i].op == Equality_Eq) {
+            if (post->op == Equality_Eq) {
                 printDebug("==\n");
             }
-            else if (expr.postExprs[i].op == Equality_NEq) {
+            else if (post->op == Equality_NEq) {
                 printDebug("!=\n");
             }
             else {
                 assert(false);
             }
         }
-        printRelationalExpr(expr.postExprs[i].expr, indent + BaseIndent);
+        printRelationalExpr(post->expr, indent + BaseIndent);
     }
 }
 
 void printAndExpr(AndExpr expr, uint64_t indent) {
-    for (size_t i = 0; i < expr.numExprs; i++) {
-        printEqualityExpr(expr.exprs[i], indent);
-        if (i != expr.numExprs - 1) {
+    sll_foreach(expr.list, node) {
+        EqualityExpr *eqExpr = slNode_getData(node);
+        printEqualityExpr(*eqExpr, indent);
+        if (node->next != NULL) {
+        // if (i != expr.numExprs - 1) {
             printIndent(indent + BaseIndent);
             printDebug("&\n");
         }
@@ -3854,9 +3825,11 @@ void printAndExpr(AndExpr expr, uint64_t indent) {
 }
 
 void printExclusiveOrExpr(ExclusiveOrExpr expr, uint64_t indent) {
-    for (size_t i = 0; i < expr.numExprs; i++) {
-        printAndExpr(expr.exprs[i], indent);
-        if (i != expr.numExprs - 1) {
+    sll_foreach(expr.list, node) {
+        AndExpr *andExpr = slNode_getData(node);
+        printAndExpr(*andExpr, indent);
+        if (node->next != NULL) {
+        // if (i != expr.numExprs - 1) {
             printIndent(indent + BaseIndent);
             printDebug("^\n");
         }
@@ -3864,9 +3837,11 @@ void printExclusiveOrExpr(ExclusiveOrExpr expr, uint64_t indent) {
 }
 
 void printInclusiveOrExpr(InclusiveOrExpr expr, uint64_t indent) {
-    for (size_t i = 0; i < expr.numExprs; i++) {
-        printExclusiveOrExpr(expr.exprs[i], indent);
-        if (i != expr.numExprs - 1) {
+    sll_foreach(expr.list, node) {
+        ExclusiveOrExpr *orExpr = slNode_getData(node);
+        printExclusiveOrExpr(*orExpr, indent);
+        if (node->next != NULL) {
+        // if (i != expr.numExprs - 1) {
             printIndent(indent + BaseIndent);
             printDebug("|\n");
         }
@@ -3874,9 +3849,11 @@ void printInclusiveOrExpr(InclusiveOrExpr expr, uint64_t indent) {
 }
 
 void printLogicalAndExpr(LogicalAndExpr expr, uint64_t indent) {
-    for (size_t i = 0; i < expr.numExprs; i++) {
-        printInclusiveOrExpr(expr.exprs[i], indent);
-        if (i != expr.numExprs - 1) {
+    sll_foreach(expr.list, node) {
+        InclusiveOrExpr *orExpr = slNode_getData(node);
+        printInclusiveOrExpr(*orExpr, indent);
+        if (node->next != NULL) {
+        // if (i != expr.numExprs - 1) {
             printIndent(indent + BaseIndent);
             printDebug("&&\n");
         }
@@ -3884,9 +3861,11 @@ void printLogicalAndExpr(LogicalAndExpr expr, uint64_t indent) {
 }
 
 void printLogicalOrExpr(LogicalOrExpr orExpr, uint64_t indent) {
-    for (size_t i = 0; i < orExpr.numExprs; i++) {
-        printLogicalAndExpr(orExpr.exprs[i], indent);
-        if (i != orExpr.numExprs - 1) {
+    sll_foreach(orExpr.list, node) {
+        LogicalAndExpr *andExpr = slNode_getData(node);
+        printLogicalAndExpr(*andExpr, indent);
+        if (node->next != NULL) {
+        // if (i != orExpr.numExprs - 1) {
             printIndent(indent + BaseIndent);
             printDebug("||\n");
         }
@@ -3961,9 +3940,10 @@ void printAssignOp(AssignOp op, uint64_t indent) {
 } 
 
 void printAssignExpr(AssignExpr expr, uint64_t indent) {
-    for (size_t i = 0; i < expr.numAssignOps; i++) {
-        printUnaryExpr(expr.leftExprs[i].leftExpr, indent);
-        printAssignOp(expr.leftExprs[i].op, indent + BaseIndent);
+    sll_foreach(expr.leftExprs, node) {
+        AssignPrefix *prefix = slNode_getData(node);
+        printUnaryExpr(prefix->leftExpr, indent);
+        printAssignOp(prefix->op, indent + BaseIndent);
     }
     printConditionalExpr(expr.rightExpr, indent);
 }
@@ -3982,9 +3962,10 @@ void printInnerExpr(InnerExpr expr, uint64_t indent) {
 
 void printExpr(Expr expr, uint64_t indent) {
     printIndent(indent);
-    printDebug("Expr: %ld\n", expr.numExprs);
-    for (size_t i = 0; i < expr.numExprs; i++) {
-        printInnerExpr(expr.exprs[i], indent + BaseIndent);
+    printDebug("Expr: %ld\n", expr.list.size);
+    sll_foreach(expr.list, node) {
+        InnerExpr *inner = slNode_getData(node);
+        printInnerExpr(*inner, indent + BaseIndent);
     }
 }
 
@@ -4005,9 +3986,10 @@ void printParameterDeclaration(ParameterDeclaration decl, uint64_t indent) {
 
 void printParameterTypeList(ParameterTypeList list, uint64_t indent) {
     printIndent(indent);
-    printDebug("Parameter Type List: %ld\n", list.numParamDecls);
-    for (size_t i = 0; i < list.numParamDecls; i++) {
-        printParameterDeclaration(list.paramDecls[i], indent + BaseIndent);
+    printDebug("Parameter Type List: %ld\n", list.paramDecls.size);
+    sll_foreach(list.paramDecls, node) {
+        ParameterDeclaration *decl = slNode_getData(node);
+        printParameterDeclaration(*decl, indent + BaseIndent);
     }
     if (list.hasEndingEllipsis) {
         printIndent(indent + BaseIndent);
@@ -4043,9 +4025,10 @@ void printPostDirectAbstractDeclarator(PostDirectAbstractDeclarator post, uint64
             }
 
             printIndent(indent + BaseIndent);
-            printDebug("Type qualifier list: %ld\n", post.bracketTypeQualifierListLength);
-            for (size_t i = 0; i < post.bracketTypeQualifierListLength; i++) {
-                printTypeQualifier(post.bracketTypeQualifiers[i], indent + BaseIndent + BaseIndent);
+            printDebug("Type qualifier list: %ld\n", post.bracketTypeQualifiers.size);
+            sll_foreach(post.bracketTypeQualifiers, node) {
+                TypeQualifier *qualifier = slNode_getData(node);
+                printTypeQualifier(*qualifier, indent + BaseIndent + BaseIndent);
             }
 
             if (post.bracketHasMiddleStatic) {
@@ -4078,8 +4061,9 @@ void printDirectAbstractDeclarator(DirectAbstractDeclarator direct, uint64_t ind
         printDebug(")\n");
     }
 
-    for (size_t i = 0; i < direct.numPostDirectAbstractDeclarators; i++) {
-        printPostDirectAbstractDeclarator(direct.postDirectAbstractDeclarators[i], indent + BaseIndent);
+    sll_foreach(direct.postDirectAbstractDeclarators, node) {
+        PostDirectAbstractDeclarator *post = slNode_getData(node);
+        printPostDirectAbstractDeclarator(*post, indent + BaseIndent);
     }
 }
 
@@ -4091,8 +4075,9 @@ void printPointer(Pointer pointer, uint64_t indent) {
 
     printDebug("\n");
 
-    for (size_t i = 0; i < pointer.numTypeQualifiers; i++) {
-        printTypeQualifier(pointer.typeQualifiers[i], indent + BaseIndent);
+    sll_foreach(pointer.typeQualifiers, node) {
+        TypeQualifier *qualifier = slNode_getData(node);
+        printTypeQualifier(*qualifier, indent + BaseIndent);
     }
 
     if (pointer.hasPtr) {
@@ -4112,10 +4097,10 @@ void printAbstractDeclarator(AbstractDeclarator decl, uint64_t indent) {
 
 void printIdentifierList(IdentifierList list, uint64_t indent) {
     printIndent(indent);
-    printDebug("Identifier list: %ld\n", list.numIdents);
-    for (size_t i = 0; i < list.numIdents; i++) {
+    printDebug("Identifier list: %ld\n", list.list.size);
+    sll_foreach(list.list, node) {
         printIndent(indent + BaseIndent);
-        printDebug("%s\n", list.idents[i]);
+        printDebug("%.*s\n", astr_format(*slNode_getData(node)));
     }
 }
 
@@ -4165,8 +4150,9 @@ void printPostDirectDeclarator(PostDirectDeclarator post, uint64_t indent) {
 
             printIndent(indent + BaseIndent);
             printDebug("Type qualifier list: %ld\n", post.bracketNumTypeQualifiers);
-            for (size_t i = 0; i < post.bracketNumTypeQualifiers; i++) {
-                printTypeQualifier(post.bracketTypeQualifiers[i], indent + BaseIndent + BaseIndent);
+            sll_foreach(post.bracketTypeQualifiers, node) {
+                TypeQualifier *qualifier = slNode_getData(node);
+                printTypeQualifier(*qualifier, indent + BaseIndent + BaseIndent);
             }
 
             if (post.bracketHasMiddleStatic) {
@@ -4188,7 +4174,7 @@ void printPostDirectDeclarator(PostDirectDeclarator post, uint64_t indent) {
 void printDirectDeclarator(DirectDeclarator direct, uint64_t indent) {
     printIndent(indent);
     if (direct.type == DirectDeclarator_Ident) {
-        printDebug("%s\n", direct.ident);
+        printDebug("%.*s\n", astr_format(direct.ident));
     }
     else if (direct.type == DirectDeclarator_ParenDeclarator) {
         printDebug("(\n");
@@ -4204,8 +4190,9 @@ void printDirectDeclarator(DirectDeclarator direct, uint64_t indent) {
 
     printIndent(indent);
     printDebug("Post Direct Declarator: %ld\n", direct.numPostDirectDeclarators);
-    for (size_t i = 0; i < direct.numPostDirectDeclarators; i++) {
-        printPostDirectDeclarator(direct.postDirectDeclarators[i], indent + BaseIndent);
+    sll_foreach(direct.postDirectDeclarators, node) {
+        PostDirectDeclarator *post = slNode_getData(node);
+        printPostDirectDeclarator(*post, indent + BaseIndent);
     }
 }
 
@@ -4259,8 +4246,9 @@ void printSpecifierQualifier(SpecifierQualifier specQual, uint64_t indent) {
 void printSpecifierQualifierList(SpecifierQualifierList list, uint64_t indent) {
     printIndent(indent);
     printDebug("Specifier Qualifier List: %ld\n", list.numSpecifierQualifiers);
-    for (size_t i = 0; i < list.numSpecifierQualifiers; i++) {
-        printSpecifierQualifier(list.specifierQualifiers[i], indent + BaseIndent);
+    sll_foreach(list.list, node) {
+        SpecifierQualifier *spec = slNode_getData(node);
+        printSpecifierQualifier(*spec, indent + BaseIndent);
     }
 }
 
@@ -4284,8 +4272,9 @@ void printStructDeclarator(StructDeclarator decl, uint64_t indent) {
 void printStructDeclaratorList(StructDeclaratorList list, uint64_t indent) {
     printIndent(indent);
     printDebug("Struct Declarator List: %lu\n", list.numStructDeclarators);
-    for (size_t i = 0; i < list.numStructDeclarators; i++) {
-        printStructDeclarator(list.structDeclarators[i], indent + BaseIndent);
+    sll_foreach(list.list, node) {
+        StructDeclarator *decl = slNode_getData(node);
+        printStructDeclarator(*decl, indent + BaseIndent);
     }
 }
 
@@ -4296,7 +4285,7 @@ void printStaticAssertDeclaration(StaticAssertDeclaration staticAssert, uint64_t
     printIndent(indent + BaseIndent);
     printDebug(",\n");
     printIndent(indent + BaseIndent);
-    printDebug("%s\n", staticAssert.stringLiteral);
+    printDebug("%.*s\n", astr_format(staticAssert.stringLiteral));
 }
 
 void printStructDeclaration(StructDeclaration decl, uint64_t indent) {
@@ -4329,7 +4318,7 @@ void printStructOrUnionSpecifier(StructOrUnionSpecifier structOrUnion, uint64_t 
     }
 
     if (structOrUnion.hasIdent) {
-        printDebug(" %s\n", structOrUnion.ident);
+        printDebug(" %.*s\n", astr_format(structOrUnion.ident));
     }
     else {
         printDebug("\n");
@@ -4342,8 +4331,9 @@ void printStructOrUnionSpecifier(StructOrUnionSpecifier structOrUnion, uint64_t 
     else {
         printDebug("{\n");
 
-        for (size_t i = 0; i < structOrUnion.numStructDecls; i++) {
-            printStructDeclaration(structOrUnion.structDeclarations[i], indent + BaseIndent);
+        sll_foreach(structOrUnion.structDeclarations, node) {
+            StructDeclaration *decl = slNode_getData(node);
+            printStructDeclaration(*decl, indent + BaseIndent);
         }
 
         printIndent(indent);
@@ -4353,7 +4343,7 @@ void printStructOrUnionSpecifier(StructOrUnionSpecifier structOrUnion, uint64_t 
 
 void printEnumerator(Enumerator enumer, uint64_t indent) {
     printIndent(indent);
-    printDebug("%s", enumer.constantIdent);
+    printDebug("%.*s", astr_format(enumer.constantIdent));
     if (enumer.hasConstExpr) {
         printDebug(" = \n");
         printConditionalExpr(enumer.constantExpr, indent + BaseIndent);
@@ -4366,15 +4356,16 @@ void printEnumerator(Enumerator enumer, uint64_t indent) {
 void printEnumeratorList(EnumeratorList enumList, uint64_t indent) {
     printIndent(indent);
     printDebug("EnumeratorList: %lu\n", enumList.numEnumerators);
-    for (size_t i = 0; i < enumList.numEnumerators; i++) {
-        printEnumerator(enumList.enumerators[i], indent + BaseIndent);
+    sll_foreach(enumList.list, node) {
+        Enumerator *enumerator = slNode_getData(node);
+        printEnumerator(*enumerator, indent + BaseIndent);
     }
 }
 
 void printEnumSpecifier(EnumSpecifier enumSpec, uint64_t indent) {
     printIndent(indent);
     if (enumSpec.hasIdent)
-        printDebug("enum %s\n", enumSpec.ident);
+        printDebug("enum %.*s\n", astr_format(enumSpec.ident));
     else
         printDebug("enum\n");
     
@@ -4461,7 +4452,7 @@ void printTypeSpecifier(TypeSpecifier type, uint64_t indent) {
         }
         case TypeSpecifier_TypedefName: {
             printIndent(indent);
-            printDebug("Typedefed name: %s\n", type.typedefName);
+            printDebug("Typedefed name: %.*s\n", astr_format(type.typedefName));
             break;
         }
         default: {
@@ -4565,8 +4556,9 @@ void printDeclarationSpecifier(DeclarationSpecifier decl, uint64_t indent) {
 void printDeclarationSpecifierList(DeclarationSpecifierList list, uint64_t indent) {
     printIndent(indent);
     printDebug("Declaration Specifier List: %ld\n", list.numSpecifiers);
-    for (size_t i = 0; i < list.numSpecifiers; i++) {
-        printDeclarationSpecifier(list.specifiers[i], indent + BaseIndent);
+    sll_foreach(list.list, node) {
+        DeclarationSpecifier *decl = slNode_getData(node);
+        printDeclarationSpecifier(*decl, indent + BaseIndent);
     }
 }
 
@@ -4581,8 +4573,9 @@ void printInitDeclarator(InitDeclarator init, uint64_t indent) {
 void printInitDeclaratorList(InitDeclaratorList list, uint64_t indent) {
     printIndent(indent);
     printDebug("Init declarator list: %lu\n", list.numInitDeclarators);
-    for (size_t i = 0; i < list.numInitDeclarators; i++) {
-        printInitDeclarator(list.initDeclarators[i], indent + BaseIndent);
+    sll_foreach(list.list, node) {
+        InitDeclarator *init = slNode_getData(node);
+        printInitDeclarator(*init, indent + BaseIndent);
     }
 }
 
@@ -4607,7 +4600,7 @@ void printLabeledStatement(LabeledStatement label, uint64_t indent) {
     printIndent(indent);
     switch (label.type) {
         case LabeledStatement_Ident: {
-            printDebug("Label: %s\n", label.ident);
+            printDebug("Label: %.*s\n", astr_format(label.ident));
             break;
         }
         case LabeledStatement_Case: {
@@ -4707,7 +4700,7 @@ void printJumpStatement(JumpStatement jump, uint64_t indent) {
     printIndent(indent);
     switch (jump.type) {
         case JumpStatement_Goto: {
-            printDebug("goto %s\n", jump.gotoIdent);
+            printDebug("goto %.*s\n", astr_format(jump.gotoIdent));
             break;
         }
         case JumpStatement_Continue: {
@@ -4783,8 +4776,9 @@ void printBlockItemList(BlockItemList list, uint64_t indent) {
     printIndent(indent);
     printDebug("Block Item List: %lu\n", list.numBlockItems);
 
-    for (size_t i = 0; i < list.numBlockItems; i++) {
-        printBlockItem(list.blockItems[i], indent + BaseIndent);
+    sll_foreach(list.list, node) {
+        BlockItem *item = slNode_getData(node);
+        printBlockItem(*item, indent + BaseIndent);
     }
 }
 
@@ -4815,8 +4809,9 @@ void printFuncDef(FuncDef def, uint64_t indent) {
     printIndent(newIndent);
     printDebug("Declarations: %ld\n", def.numDeclarations);
 
-    for (uint64_t i = 0; i < def.numDeclarations; i++) {
-        printDeclaration(def.declarations[i], newIndent + BaseIndent);
+    sll_foreach(def.declarations, node) {
+        Declaration *decl = slNode_getData(node);
+        printDeclaration(*decl, newIndent + BaseIndent);
     }
 
     printCompoundStmt(def.stmt, newIndent);
@@ -4835,7 +4830,8 @@ void printExternalDecl(ExternalDecl decl, uint64_t indent) {
 void printTranslationUnit(TranslationUnit translationUnit) {
     printDebug("Translation Unit:\n");
 
-    for (uint64_t i = 0; i < translationUnit.numDecls; i++) {
-        printExternalDecl(translationUnit.decls[i], BaseIndent);
+    sll_foreach(translationUnit.externalDecls, node) {
+        ExternalDecl *decl = slNode_getData(node);
+        printExternalDecl(*decl, BaseIndent);
     }
 }

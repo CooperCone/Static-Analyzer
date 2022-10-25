@@ -4,6 +4,7 @@
 
 #include "lexer.h"
 #include "astring.h"
+#include "linkedList.h"
 
 struct ConditionalExpr;
 struct InitializerList;
@@ -32,8 +33,9 @@ typedef struct {
 } Designator;
 
 typedef struct {
-    size_t numDesignators;
-    Designator *designators;
+    SLList list; // Designator
+    // size_t numDesignators;
+    // Designator *designators;
 } Designation;
 
 typedef enum {
@@ -56,8 +58,9 @@ typedef struct {
 } DesignationAndInitializer;
 
 typedef struct InitializerList {
-    size_t numInitializers;
-    DesignationAndInitializer *initializers;
+    SLList list; // DesignationAndInitializer
+    // size_t numInitializers;
+    // DesignationAndInitializer *initializers;
 } InitializerList;
 
 typedef struct {
@@ -68,8 +71,9 @@ typedef struct {
 
 typedef struct {
     struct AssignExpr *expr;
-    size_t numAssociations;
-    GenericAssociation *associations;
+    SLList associations; // GenericAssociation
+    // size_t numAssociations;
+    // GenericAssociation *associations;
 } GenericSelection;
 
 typedef enum {
@@ -106,8 +110,9 @@ typedef struct {
 } PrimaryExpr;
 
 typedef struct {
-    size_t argExprLength;
-    struct AssignExpr *argExprs;
+    SLList list; // AssignExpr
+    // size_t argExprLength;
+    // struct AssignExpr *argExprs;
 } ArgExprList;
 
 typedef enum {
@@ -147,8 +152,9 @@ typedef struct {
         };
     };
 
-    size_t numPostfixOps;
-    PostfixOp *postfixOps;
+    SLList postfixOps; // PostfixOp
+    // size_t numPostfixOps;
+    // PostfixOp *postfixOps;
 } PostfixExpr;
 
 typedef enum {
@@ -215,8 +221,9 @@ typedef struct {
 
 typedef struct {
     CastExpr baseExpr;
-    size_t numPostExprs;
-    MultiplicativePost *postExprs;
+    SLList postExprs; // MultiplicativePost
+    // size_t numPostExprs;
+    // MultiplicativePost *postExprs;
 } MultiplicativeExpr;
 
 typedef enum {
@@ -231,8 +238,9 @@ typedef struct {
 
 typedef struct {
     MultiplicativeExpr baseExpr;
-    size_t numPostExprs;
-    AdditivePost *postExprs;
+    SLList postExprs; // AdditivePost
+    // size_t numPostExprs;
+    // AdditivePost *postExprs;
 } AdditiveExpr;
 
 typedef enum {
@@ -247,8 +255,9 @@ typedef struct {
 
 typedef struct {
     AdditiveExpr baseExpr;
-    size_t numPostExprs;
-    ShiftPost *postExprs;
+    SLList postExprs;
+    // size_t numPostExprs;
+    // ShiftPost *postExprs;
 } ShiftExpr;
 
 typedef enum {
@@ -265,8 +274,9 @@ typedef struct {
 
 typedef struct {
     ShiftExpr baseExpr;
-    size_t numPostExprs;
-    RelationalPost *postExprs;
+    SLList postExprs;
+    // size_t numPostExprs;
+    // RelationalPost *postExprs;
 } RelationalExpr;
 
 typedef enum {
@@ -281,33 +291,39 @@ typedef struct {
 
 typedef struct {
     RelationalExpr baseExpr;
-    size_t numPostExprs;
-    EqualityPost *postExprs;
+    SLList postExprs;
+    // size_t numPostExprs;
+    // EqualityPost *postExprs;
 } EqualityExpr;
 
 typedef struct {
-    size_t numExprs;
-    EqualityExpr *exprs;
+    SLList list;
+    // size_t numExprs;
+    // EqualityExpr *exprs;
 } AndExpr;
 
 typedef struct {
-    size_t numExprs;
-    AndExpr *exprs;
+    SLList list;
+    // size_t numExprs;
+    // AndExpr *exprs;
 } ExclusiveOrExpr;
 
 typedef struct {
-    size_t numExprs;
-    ExclusiveOrExpr *exprs;
+    SLList list;
+    // size_t numExprs;
+    // ExclusiveOrExpr *exprs;
 } InclusiveOrExpr;
 
 typedef struct {
-    size_t numExprs;
-    InclusiveOrExpr *exprs;
+    SLList list;
+    // size_t numExprs;
+    // InclusiveOrExpr *exprs;
 } LogicalAndExpr;
 
 typedef struct {
-    size_t numExprs;
-    LogicalAndExpr *exprs;
+    SLList list;
+    // size_t numExprs;
+    // LogicalAndExpr *exprs;
 } LogicalOrExpr;
 
 typedef struct ConditionalExpr {
@@ -338,8 +354,9 @@ typedef struct {
 } AssignPrefix;
 
 typedef struct AssignExpr {
-    size_t numAssignOps;
-    AssignPrefix *leftExprs;
+    SLList leftExprs;
+    // size_t numAssignOps;
+    // AssignPrefix *leftExprs;
 
     ConditionalExpr rightExpr;
 } AssignExpr;
@@ -360,8 +377,9 @@ typedef struct {
 } InnerExpr;
 
 typedef struct Expr {
-    size_t numExprs;
-    InnerExpr *exprs;
+    SLList list;
+    // size_t numExprs;
+    // InnerExpr *exprs;
 } Expr;
 
 typedef struct {
@@ -373,8 +391,9 @@ typedef struct {
 } ParameterDeclaration;
 
 typedef struct {
-    size_t numParamDecls;
-    ParameterDeclaration *paramDecls;
+    SLList paramDecls;
+    // size_t numParamDecls;
+    // ParameterDeclaration *paramDecls;
     bool hasEndingEllipsis;
 } ParameterTypeList;
 
@@ -390,9 +409,10 @@ typedef struct {
             bool bracketIsEmpty;
             bool bracketIsStar;
             bool bracketHasInitialStatic;
-            
-            size_t bracketTypeQualifierListLength;
-            enum TypeQualifier *bracketTypeQualifiers;
+
+            SLList bracketTypeQualifiers;
+            // size_t bracketTypeQualifierListLength;
+            // enum TypeQualifier *bracketTypeQualifiers;
             
             bool bracketHasMiddleStatic;
             
@@ -409,14 +429,16 @@ typedef struct {
 typedef struct {
     bool hasAbstractDeclarator;
     struct AbstractDeclarator *abstractDeclarator;
-    size_t numPostDirectAbstractDeclarators;
-    PostDirectAbstractDeclarator *postDirectAbstractDeclarators;
+    SLList postDirectAbstractDeclarators;
+    // size_t numPostDirectAbstractDeclarators;
+    // PostDirectAbstractDeclarator *postDirectAbstractDeclarators;
 } DirectAbstractDeclarator;
 
 typedef struct Pointer {
     size_t numPtrs;
-    size_t numTypeQualifiers;
-    enum TypeQualifier *typeQualifiers;
+    SLList typeQualifiers;
+    // size_t numTypeQualifiers;
+    // enum TypeQualifier *typeQualifiers;
     bool hasPtr;
     struct Pointer *pointer;
 } Pointer;
@@ -429,8 +451,9 @@ typedef struct AbstractDeclarator {
 } AbstractDeclarator;
 
 typedef struct {
-    size_t numIdents;
-    String *idents;
+    SLList list;
+    // size_t numIdents;
+    // String *idents;
 } IdentifierList;
 
 typedef enum {
@@ -452,8 +475,9 @@ typedef struct {
             bool bracketIsStar;
 
             bool bracketHasInitialStatic;
-            size_t bracketNumTypeQualifiers;
-            enum TypeQualifier *bracketTypeQualifiers;
+            SLList bracketTypeQualifiers;
+            // size_t bracketNumTypeQualifiers;
+            // enum TypeQualifier *bracketTypeQualifiers;
 
             bool bracketHasStarAfterTypeQualifiers;
 
@@ -484,8 +508,9 @@ typedef struct {
         struct Declarator *declarator;
     };
 
-    size_t numPostDirectDeclarators;
-    PostDirectDeclarator *postDirectDeclarators;
+    SLList postDirectDeclarators;
+    // size_t numPostDirectDeclarators;
+    // PostDirectDeclarator *postDirectDeclarators;
 } DirectDeclarator;
 
 typedef struct Declarator {
@@ -515,8 +540,9 @@ typedef struct {
 } SpecifierQualifier;
 
 typedef struct {
-    size_t numSpecifierQualifiers;
-    SpecifierQualifier *specifierQualifiers;
+    SLList list;
+    // size_t numSpecifierQualifiers;
+    // SpecifierQualifier *specifierQualifiers;
 } SpecifierQualifierList;
 
 typedef struct TypeName {
@@ -533,8 +559,9 @@ typedef struct {
 } StructDeclarator;
 
 typedef struct {
-    size_t numStructDeclarators;
-    StructDeclarator *structDeclarators;
+    SLList list;
+    // size_t numStructDeclarators;
+    // StructDeclarator *structDeclarators;
 } StructDeclaratorList;
 
 typedef struct {
@@ -569,8 +596,9 @@ typedef struct {
     bool hasIdent;
     String ident;
     bool hasStructDeclarationList;
-    size_t numStructDecls;
-    StructDeclaration *structDeclarations;
+    SLList structDeclarations;
+    // size_t numStructDecls;
+    // StructDeclaration *structDeclarations;
 } StructOrUnionSpecifier;
 
 typedef struct {
@@ -580,8 +608,9 @@ typedef struct {
 } Enumerator;
 
 typedef struct {
-    size_t numEnumerators;
-    Enumerator *enumerators;
+    SLList list;
+    // size_t numEnumerators;
+    // Enumerator *enumerators;
 } EnumeratorList;
 
 typedef struct {
@@ -667,8 +696,9 @@ typedef struct {
 } DeclarationSpecifier;
 
 typedef struct DeclarationSpecifierList {
-    size_t numSpecifiers;
-    DeclarationSpecifier *specifiers;
+    SLList list;
+    // size_t numSpecifiers;
+    // DeclarationSpecifier *specifiers;
 } DeclarationSpecifierList;
 
 typedef struct {
@@ -678,8 +708,9 @@ typedef struct {
 } InitDeclarator;
 
 typedef struct {
-    size_t numInitDeclarators;
-    InitDeclarator *initDeclarators;
+    SLList list;
+    // size_t numInitDeclarators;
+    // InitDeclarator *initDeclarators;
  } InitDeclaratorList;
 
 typedef enum {
@@ -822,8 +853,9 @@ typedef struct {
 } BlockItem;
 
 typedef struct {
-    size_t numBlockItems;
-    BlockItem *blockItems;
+    SLList list;
+    // size_t numBlockItems;
+    // BlockItem *blockItems;
 } BlockItemList;
 
 typedef struct CompoundStmt {
@@ -834,8 +866,9 @@ typedef struct CompoundStmt {
 typedef struct {
     DeclarationSpecifierList specifiers;
     Declarator declarator;
-    size_t numDeclarations;
-    Declaration *declarations;
+    SLList declarations;
+    // size_t numDeclarations;
+    // Declaration *declarations;
     CompoundStmt stmt;
 } FuncDef;
 
@@ -853,9 +886,12 @@ typedef struct {
 } ExternalDecl;
 
 typedef struct {
-    size_t numDecls;
-    ExternalDecl *decls;
+    SLList externalDecls;
+    // size_t numDecls;
+    // ExternalDecl *decls;
 } TranslationUnit;
+
+void translationUnit_cleanup(TranslationUnit unit);
 
 bool parseTokens(TokenList *tokens,
     TranslationUnit *outTranslationUnit);
