@@ -10,6 +10,79 @@
 #include "debug.h"
 #include "linkedList.h"
 
+// Generic Parsers
+#define Fail(msg) ((ParseRes){ .success = false, .failMessage = msg })
+#define Succeed ((ParseRes){ .success = true })
+
+// CLEANUP: Finish cleanup of parsers and reduction of duplicate code
+
+ParseRes parseList(TokenList *tokens, void *data)
+{
+    SimpleParser *parser = data;
+    assert(parser->type == SimpleParser_List);
+
+    // Parse designator list
+    ParseRes res = {0};
+    do {
+        size_t pos = tokens->pos;
+
+        void *elem = calloc(1, parser->listElemSize);
+        res = parser->listElemParser(tokens, elem);
+        if (!res.success) {
+            tokens->pos = pos;
+            break;
+        }
+
+        sll_append(parser->listOut, elem, parser->listElemSize);
+
+        free(elem);
+    } while (res.success);
+
+    if (parser->listOut->size == 0)
+        return Fail(parser->listFailMessage);
+
+    return Succeed;
+}
+
+ParseRes parseOptional(TokenList *tokens, void *data) {
+    SimpleParser *parser = data;
+    assert(parser->type == SimpleParser_Optional);
+
+    size_t pos = tokens->pos;
+
+    ParseRes res = parser->optionalParser(tokens, parser->optionalData);
+
+    if (!res.success) {
+        tokens->pos = pos;
+    }
+
+    return Succeed;
+}
+
+SimpleParser ListParser(Parser listElemParser, SLList *listOut,
+    size_t listElemSize, char *listFailMessage)
+{
+    SimpleParser res = {0};
+    res.type = SimpleParser_List;
+    res.listElemParser = listElemParser;
+    res.listOut = listOut;
+    res.listElemSize = listElemSize;
+    res.listFailMessage = listFailMessage;
+    res.run = parseList;
+    return res;
+}
+
+SimpleParser OptionalParser(Parser parser, void *data) {
+    SimpleParser res = {0};
+    res.type = SimpleParser_Optional;
+    res.optionalParser = parser;
+    res.optionalData = data;
+    res.run = parseOptional;
+    return res;
+}
+
+// End Generic Parsers
+
 static SLList g_typedefTable;
 
 bool typedefTable_find(SLList table, String name) {
@@ -65,11 +138,6 @@ bool consumeIfTok(TokenList *tokens, TokenType type) {
     return false;
 }
 
-typedef struct {
-    bool success;
-    char *failMessage;
-} ParseRes;
-
 // Forward decls
 ParseRes parseAssignExpr(TokenList *tokens, AssignExpr *expr);
 ParseRes parseConditionalExpr(TokenList *tokens, ConditionalExpr *expr);
@@ -120,7 +188,7 @@ ParseRes parseDesignator(TokenList *tokens, Designator *designator) {
         return (ParseRes) { .success = true };
     }
     else if (consumeIfTok(tokens, '[')) {
-        
+
         ConditionalExpr expr = {0};
         if (!parseConditionalExpr(tokens, &expr).success) {
             return (ParseRes) {
@@ -151,20 +219,24 @@ ParseRes parseDesignator(TokenList *tokens, Designator *designator) {
 }
 
 ParseRes parseDesignation(TokenList *tokens, Designation *designation) {
-    // Parse designator list
-    ParseRes res = {0};
-    do {
-        size_t pos = tokens->pos;
+    // // Parse designator list
+    // ParseRes res = {0};
+    // do {
+    //     size_t pos = tokens->pos;
 
-        Designator designator = {0};
-        res = parseDesignator(tokens, &designator);
-        if (!res.success) {
-            tokens->pos = pos;
-            break;
-        }
+    //     Designator designator = {0};
+    //     res = parseDesignator(tokens, &designator);
+    //     if (!res.success) {
+    //         tokens->pos = pos;
+    //         break;
+    //     }
 
-        sll_appendLocal(&(designation->list), designator);
-    } while (res.success);
+    //     sll_appendLocal(&(designation->list), designator);
+    // } while (res.success);
+
+    SimpleParser list = ListParser((Parser)parseDesignator, &(designation->list),
+        sizeof(Designator), "Failed to find designator list in designation");
+    list.run(tokens, &list);
 
     if (!consumeIfTok(tokens, '=')) {
         return (ParseRes){
@@ -269,7 +341,7 @@ ParseRes parseGenericAssociation(TokenList *tokens, GenericAssociation *associat
         ParseRes assignRes = parseAssignExpr(tokens, &expr);
         if (!assignRes.success)
             return assignRes;
-        
+
         association->isDefault = true;
         association->expr = malloc(sizeof(expr));
         memcpy(association->expr, &expr, sizeof(expr));
@@ -292,7 +364,7 @@ ParseRes parseGenericAssociation(TokenList *tokens, GenericAssociation *associat
     ParseRes assignRes = parseAssignExpr(tokens, &expr);
     if (!assignRes.success)
         return assignRes;
-    
+
     association->isDefault = false;
     association->typeName = malloc(sizeof(typeName));
     memcpy(association->typeName, &typeName, sizeof(typeName));
@@ -375,7 +447,7 @@ ParseRes parsePrimaryExpr(TokenList *tokens, PrimaryExpr *primary) {
         ParseRes res = parseExpr(tokens, &expr);
         if (!res.success)
             return res;
-        
+
         if (!consumeIfTok(tokens, ')')) {
             return (ParseRes) {
                 .success = false,
@@ -435,7 +507,7 @@ ParseRes parsePostfixOp(TokenList *tokens, PostfixOp *op) {
         ParseRes res = parseExpr(tokens, &expr);
         if (!res.success)
             return res;
-        
+
         if (!consumeIfTok(tokens, ']')) {
             return (ParseRes) {
                 .success = false,
@@ -636,7 +708,7 @@ ParseRes parseUnaryExpr(TokenList *tokens, UnaryExpr *unaryExpr) {
         CastExpr cast = {0};
         if (!parseCastExpr(tokens, &cast).success)
             goto ParseUnaryExpr_PostPrefix;
-        
+
         unaryExpr->type = UnaryExpr_UnaryOp;
         unaryExpr->unaryOpType = prefixType;
         unaryExpr->unaryOpCast = malloc(sizeof(cast));
@@ -730,7 +802,7 @@ ParseUnaryExpr_PostSizeofTypename:
         unaryExpr->alignofTypeName = malloc(sizeof(typeName));
         memcpy(unaryExpr->alignofTypeName, &typeName, sizeof(typeName));
 
-        return (ParseRes){ .success = true };        
+        return (ParseRes){ .success = true };
     }
 
 ParseUnaryExpr_PostAlignofTypename:
@@ -785,7 +857,7 @@ Cast_NoCast:
     ParseRes unaryRes = parseUnaryExpr(tokens, &unary);
     if (!unaryRes.success)
         return unaryRes;
-    
+
     cast->type = CastExpr_Unary;
     cast->unary = unary;
 
@@ -810,7 +882,7 @@ ParseRes parseMultiplicativeExpr(TokenList *tokens, MultiplicativeExpr *multipli
         MultiplicativeOp op = type == '*' ? Multiplicative_Mul :
             type == '/' ? Multiplicative_Div :
             Multiplicative_Mod;
-        
+
         CastExpr cast = {0};
         ParseRes res = parseCastExpr(tokens, &cast);
         if (!res.success) {
@@ -844,7 +916,7 @@ ParseRes parseAdditiveExpr(TokenList *tokens, AdditiveExpr *additiveExpr) {
     {
         TokenType type = consumeTok(tokens).type;
         AdditiveOp op = type == '+' ? Additive_Add : Additive_Sub;
-        
+
         MultiplicativeExpr multiplicative = {0};
         ParseRes res = parseMultiplicativeExpr(tokens, &multiplicative);
         if (!res.success) {
@@ -878,7 +950,7 @@ ParseRes parseShiftExpr(TokenList *tokens, ShiftExpr *shiftExpr) {
     {
         TokenType type = consumeTok(tokens).type;
         ShiftOp op = type == Token_ShiftLeftOp ? Shift_Left : Shift_Right;
-        
+
         AdditiveExpr additive = {0};
         ParseRes res = parseAdditiveExpr(tokens, &additive);
         if (!res.success) {
@@ -917,7 +989,7 @@ ParseRes parseRelationalExpr(TokenList *tokens, RelationalExpr *relExpr) {
             type == '>' ? Relational_Gt :
             type == Token_LEqOp ? Relational_LEq :
             Relational_GEq;
-        
+
         ShiftExpr shift = {0};
         ParseRes res = parseShiftExpr(tokens, &shift);
         if (!res.success) {
@@ -951,7 +1023,7 @@ ParseRes parseEqualityExpr(TokenList *tokens, EqualityExpr *eqExpr) {
     {
         EqualityOp op = consumeTok(tokens).type == Token_EqOp ?
             Equality_Eq : Equality_NEq;
-        
+
         RelationalExpr rel = {0};
         ParseRes res = parseRelationalExpr(tokens, &rel);
         if (!res.success) {
@@ -986,7 +1058,7 @@ ParseRes parseAndExpr(TokenList *tokens, AndExpr *andExpr) {
     } while (foundAndOp);
 
     return (ParseRes){ .success = true };
-} 
+}
 
 ParseRes parseExclusiveOrExpr(TokenList *tokens, ExclusiveOrExpr *exclusiveOr) {
     bool foundOrOp = false;
@@ -1004,7 +1076,7 @@ ParseRes parseExclusiveOrExpr(TokenList *tokens, ExclusiveOrExpr *exclusiveOr) {
     } while (foundOrOp);
 
     return (ParseRes){ .success = true };
-} 
+}
 
 ParseRes parseInclusiveOrExpr(TokenList *tokens, InclusiveOrExpr *inclusiveOr) {
     bool foundOrOp = false;
@@ -1022,7 +1094,7 @@ ParseRes parseInclusiveOrExpr(TokenList *tokens, InclusiveOrExpr *inclusiveOr) {
     } while (foundOrOp);
 
     return (ParseRes){ .success = true };
-} 
+}
 
 ParseRes parseLogicalAndExpr(TokenList *tokens, LogicalAndExpr *logicalAnd) {
     bool foundAndOp = false;
@@ -1040,7 +1112,7 @@ ParseRes parseLogicalAndExpr(TokenList *tokens, LogicalAndExpr *logicalAnd) {
     } while (foundAndOp);
 
     return (ParseRes){ .success = true };
-} 
+}
 
 ParseRes parseLogicalOrExpr(TokenList *tokens, LogicalOrExpr *logicalOr) {
     bool foundOrOp = false;
@@ -1065,7 +1137,7 @@ ParseRes parseConditionalExpr(TokenList *tokens, ConditionalExpr *conditional) {
     ParseRes res = parseLogicalOrExpr(tokens, &logicalOr);
     if (!res.success)
         return res;
-    
+
     conditional->beforeExpr = logicalOr;
 
     if (!consumeIfTok(tokens, '?')) {
@@ -1250,7 +1322,7 @@ ParseRes parseExpr(TokenList *tokens, Expr *expr) {
     return (ParseRes){ .success = true };
 }
 
-ParseRes parseParameterDeclaration(TokenList *tokens, ParameterDeclaration *decl) {    
+ParseRes parseParameterDeclaration(TokenList *tokens, ParameterDeclaration *decl) {
     DeclarationSpecifierList list = {0};
     ParseRes res = parseDeclarationSpecifierList(tokens, &list);
     if (!res.success)
@@ -1322,7 +1394,7 @@ ParseRes parsePostDirectAbstractDeclarator(TokenList *tokens,
 {
     // Try to parse bracket version
     size_t bracketPos = tokens->pos;
-    
+
     if (!consumeIfTok(tokens, '['))
         goto PostDirectAbstractDeclarator_Paren;
 
@@ -1368,7 +1440,7 @@ ParseRes parsePostDirectAbstractDeclarator(TokenList *tokens,
         // Look for middle static
         if (consumeIfTok(tokens, Token_static))
             postDeclarator->bracketHasMiddleStatic = true;
-        
+
         // Look for optional assignment expression
         size_t assignPos = tokens->pos;
 
@@ -1432,7 +1504,7 @@ PostDirectAbstractDeclarator_Paren:
     ParseRes res = parseParameterTypeList(tokens, &paramList);
     if (!res.success)
         return res;
-    
+
     if (!consumeIfTok(tokens, ')')) {
         return (ParseRes) {
             .success = false,
@@ -1454,7 +1526,7 @@ ParseRes parseDirectAbstractDeclarator(TokenList *tokens,
 
     if (!consumeIfTok(tokens, '('))
         goto PostAbstractDeclaratorFail;
-    
+
     AbstractDeclarator abstractDeclarator = {0};
     ParseRes abstractRes = parseAbstractDeclarator(tokens, &abstractDeclarator);
     if (!abstractRes.success) {
@@ -1469,7 +1541,7 @@ ParseRes parseDirectAbstractDeclarator(TokenList *tokens,
     directDeclarator->abstractDeclarator = malloc(sizeof(abstractDeclarator));
     memcpy(directDeclarator->abstractDeclarator, &abstractDeclarator, sizeof(abstractDeclarator));
 
-    goto PostAbstractDeclaratorDone; 
+    goto PostAbstractDeclaratorDone;
 
 PostAbstractDeclaratorFail:
     directDeclarator->hasAbstractDeclarator = false;
@@ -2027,7 +2099,7 @@ ParseRes parseStaticAssertDeclaration(TokenList *tokens, StaticAssertDeclaration
             .failMessage = "Expected static assert at front of static assert declaration"
         };
     }
-  
+
     if (!consumeIfTok(tokens, '(')) {
         return (ParseRes) {
             .success = false,
@@ -2130,7 +2202,7 @@ ParseRes parseStructDeclaration(TokenList *tokens, StructDeclaration *declaratio
         ParseRes staticRes = parseStaticAssertDeclaration(tokens, &staticAssert);
         if (!staticRes.success)
             return staticRes;
-        
+
         declaration->type = StructDeclaration_StaticAssert;
         declaration->staticAssert = staticAssert;
 
@@ -2197,7 +2269,7 @@ ParseRes parseStructOrUnionSpecifier(TokenList *tokens, StructOrUnionSpecifier *
             ParseRes declRes = parseStructDeclaration(tokens, &decl);
             if (!declRes.success)
                 return declRes;
-            
+
             sll_appendLocal(&(structOrUnion->structDeclarations), decl);
         }
 
@@ -2231,7 +2303,7 @@ ParseRes parseEnumerator(TokenList *tokens, Enumerator *enumerator) {
         ParseRes constantRes = parseConditionalExpr(tokens, &constant);
         if (!constantRes.success)
             return constantRes;
-        
+
         enumerator->hasConstExpr = true;
         enumerator->constantExpr = constant;
     }
@@ -2248,7 +2320,7 @@ ParseRes parseEnumeratorList(TokenList *tokens, EnumeratorList *list) {
         ParseRes enumRes = parseEnumerator(tokens, &enumerator);
         if (!enumRes.success)
             return enumRes;
-        
+
         hasComma = consumeIfTok(tokens, ',');
 
         sll_appendLocal(&(list->list), enumerator);
@@ -2279,7 +2351,7 @@ ParseRes parseEnumSpecifier(TokenList *tokens, EnumSpecifier *enumSpecifier) {
         ParseRes listRes = parseEnumeratorList(tokens, &enumList);
         if (!listRes.success)
             return listRes;
-        
+
         if (!consumeIfTok(tokens, '}')) {
             return (ParseRes) {
                 .success = false,
@@ -2453,7 +2525,7 @@ ParseRes parseAlignmentSpecifier(TokenList *tokens, AlignmentSpecifier *alignmen
                 .failMessage = "Alignment specifier requires a ) after type name"
             };
         }
-        
+
         alignment->type = AlignmentSpecifier_TypeName;
         alignment->typeName = typeName;
         return (ParseRes){ .success = true };
@@ -2674,7 +2746,7 @@ ParseRes parseDeclaration(TokenList *tokens, Declaration *outDef) {
     ParseRes listRes = parseDeclarationSpecifierList(tokens, &specifiers);
     if (!listRes.success)
         return listRes;
-    
+
     outDef->type = Declaration_Normal;
     outDef->declSpecifiers = specifiers;
 
@@ -2960,7 +3032,7 @@ ParseRes parseIterationStatement(TokenList *tokens, IterationStatement *iteratio
         ParseRes exprRes = parseExpr(tokens, &expr);
         if (!exprRes.success)
             return exprRes;
-        
+
         iteration->doExpr = expr;
 
         if (!consumeIfTok(tokens, ')')) {
@@ -2992,7 +3064,7 @@ ParseRes parseIterationStatement(TokenList *tokens, IterationStatement *iteratio
         iteration->type = IterationStatement_For;
 
         size_t pos = tokens->pos;
-        
+
         // Parse optional declaration
         Declaration decl = {0};
         ParseRes declRes = parseDeclaration(tokens, &decl);
@@ -3300,7 +3372,7 @@ ParseRes parseFuncDef(TokenList *tokens, FuncDef *outDef) {
     ParseRes declRes = parseDeclarator(tokens, &declarator);
     if (!declRes.success)
         return declRes;
-    
+
     outDef->declarator = declarator;
 
     // Parse Opt Declaration List
@@ -3937,7 +4009,7 @@ void printAssignOp(AssignOp op, uint64_t indent) {
             break;
         }
     }
-} 
+}
 
 void printAssignExpr(AssignExpr expr, uint64_t indent) {
     sll_foreach(expr.leftExprs, node) {
@@ -4039,7 +4111,7 @@ void printPostDirectAbstractDeclarator(PostDirectAbstractDeclarator post, uint64
             if (post.bracketHasAssignmentExpr) {
                 printIndent(indent + BaseIndent);
                 printAssignExpr(post.bracketAssignExpr, indent + BaseIndent);
-            }            
+            }
         }
     }
     else {
@@ -4090,7 +4162,7 @@ void printAbstractDeclarator(AbstractDeclarator decl, uint64_t indent) {
     printDebug("Abstract Declarator:\n");
     if (decl.hasPointer)
         printPointer(decl.pointer, indent + BaseIndent);
-    
+
     if (decl.hasDirectAbstractDeclarator)
         printDirectAbstractDeclarator(decl.directAbstractDeclarator, indent + BaseIndent);
 }
@@ -4142,7 +4214,7 @@ void printPostDirectDeclarator(PostDirectDeclarator post, uint64_t indent) {
         }
         else {
             printDebug("[\n");
-            
+
             if (post.bracketHasInitialStatic) {
                 printIndent(indent + BaseIndent);
                 printDebug("static\n");
@@ -4163,7 +4235,7 @@ void printPostDirectDeclarator(PostDirectDeclarator post, uint64_t indent) {
             if (post.bracketHasAssignExpr) {
                 printIndent(indent + BaseIndent);
                 printAssignExpr(post.bracketAssignExpr, indent + BaseIndent);
-            }            
+            }
         }
     }
     else {
@@ -4368,7 +4440,7 @@ void printEnumSpecifier(EnumSpecifier enumSpec, uint64_t indent) {
         printDebug("enum %.*s\n", astr_format(enumSpec.ident));
     else
         printDebug("enum\n");
-    
+
     if (enumSpec.hasEnumeratorList) {
         printEnumeratorList(enumSpec.enumeratorList, indent + BaseIndent);
     }
@@ -4679,8 +4751,8 @@ void printIterationStatement(IterationStatement iter, uint64_t indent) {
                 printDeclaration(iter.forInitialDeclaration, indent + BaseIndent);
             else
                 printExpressionStatement(iter.forInitialExprStmt, indent + BaseIndent);
-            
-            printExpressionStatement(iter.forInnerExprStmt, indent + BaseIndent);   
+
+            printExpressionStatement(iter.forInnerExprStmt, indent + BaseIndent);
 
             if (iter.forHasFinalExpr)
                 printExpr(iter.forFinalExpr, indent + BaseIndent);
@@ -4713,7 +4785,7 @@ void printJumpStatement(JumpStatement jump, uint64_t indent) {
         }
         case JumpStatement_Return: {
             printDebug("return\n");
-            
+
             if (jump.returnHasExpr) {
                 printExpr(jump.returnExpr, indent + BaseIndent);
             }
@@ -4792,7 +4864,7 @@ void printCompoundStmt(CompoundStmt stmt, uint64_t indent) {
         printDebug("{\n");
 
         printBlockItemList(stmt.blockItemList, indent + BaseIndent);
-    
+
         printIndent(indent);
         printDebug("}\n");
     }
@@ -4805,7 +4877,7 @@ void printFuncDef(FuncDef def, uint64_t indent) {
     uint64_t newIndent = indent + BaseIndent;
     printDeclarationSpecifierList(def.specifiers, newIndent);
     printDeclarator(def.declarator, newIndent);
-    
+
     printIndent(newIndent);
     printDebug("Declarations: %ld\n", def.numDeclarations);
 
