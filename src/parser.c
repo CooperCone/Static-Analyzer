@@ -464,9 +464,8 @@ ParseRes parsePrimaryExpr(TokenList *tokens, PrimaryExpr *primary) {
         Token tok = consumeTok(tokens);
 
         primary->type = PrimaryExpr_Constant;
-        // FIXME: Add in support for floats too
-        primary->constant.type = Constant_Integer;
-        primary->constant.data = tok.numericWhole;
+        primary->constant.type = Constant_Numeric;
+        primary->constant.data = tok.numeric;
         return (ParseRes){ .success = true };
     }
     else if (peekTok(tokens).type == Token_funcName) {
@@ -3546,17 +3545,13 @@ void printGenericSelection(GenericSelection generic, uint64_t indent) {
 }
 
 void printConstantExpr(ConstantExpr expr, uint64_t indent) {
-    if (expr.type == Constant_Integer) {
+    if (expr.type == Constant_Numeric) {
         printIndent(indent);
-        printDebug("Int: %.*s\n", astr_format(expr.data));
+        printDebug("Numeic: %.*s\n", astr_format(expr.data));
     }
     else if (expr.type == Constant_Character) {
         printIndent(indent);
         printDebug("Char: %.*s\n", astr_format(expr.data));
-    }
-    else if (expr.type == Constant_Float) {
-        printIndent(indent);
-        printDebug("Float: %.*s\n", astr_format(expr.data));
     }
     else {
         assert(false);
@@ -4172,7 +4167,9 @@ void printIdentifierList(IdentifierList list, uint64_t indent) {
     printDebug("Identifier list: %ld\n", list.list.size);
     sll_foreach(list.list, node) {
         printIndent(indent + BaseIndent);
-        printDebug("%.*s\n", astr_format(*slNode_getData(node)));
+        String *str = slNode_getData(node);
+        printDebug("%.*s\n", astr_format(*str));
+        str = str; // This is just there to get rid of the warning
     }
 }
 
@@ -4221,7 +4218,7 @@ void printPostDirectDeclarator(PostDirectDeclarator post, uint64_t indent) {
             }
 
             printIndent(indent + BaseIndent);
-            printDebug("Type qualifier list: %ld\n", post.bracketNumTypeQualifiers);
+            printDebug("Type qualifier list: %ld\n", post.bracketTypeQualifiers.size);
             sll_foreach(post.bracketTypeQualifiers, node) {
                 TypeQualifier *qualifier = slNode_getData(node);
                 printTypeQualifier(*qualifier, indent + BaseIndent + BaseIndent);
@@ -4261,7 +4258,7 @@ void printDirectDeclarator(DirectDeclarator direct, uint64_t indent) {
     }
 
     printIndent(indent);
-    printDebug("Post Direct Declarator: %ld\n", direct.numPostDirectDeclarators);
+    printDebug("Post Direct Declarator: %ld\n", direct.postDirectDeclarators.size);
     sll_foreach(direct.postDirectDeclarators, node) {
         PostDirectDeclarator *post = slNode_getData(node);
         printPostDirectDeclarator(*post, indent + BaseIndent);
@@ -4317,7 +4314,7 @@ void printSpecifierQualifier(SpecifierQualifier specQual, uint64_t indent) {
 
 void printSpecifierQualifierList(SpecifierQualifierList list, uint64_t indent) {
     printIndent(indent);
-    printDebug("Specifier Qualifier List: %ld\n", list.numSpecifierQualifiers);
+    printDebug("Specifier Qualifier List: %ld\n", list.list.size);
     sll_foreach(list.list, node) {
         SpecifierQualifier *spec = slNode_getData(node);
         printSpecifierQualifier(*spec, indent + BaseIndent);
@@ -4343,7 +4340,7 @@ void printStructDeclarator(StructDeclarator decl, uint64_t indent) {
 
 void printStructDeclaratorList(StructDeclaratorList list, uint64_t indent) {
     printIndent(indent);
-    printDebug("Struct Declarator List: %lu\n", list.numStructDeclarators);
+    printDebug("Struct Declarator List: %lu\n", list.list.size);
     sll_foreach(list.list, node) {
         StructDeclarator *decl = slNode_getData(node);
         printStructDeclarator(*decl, indent + BaseIndent);
@@ -4427,7 +4424,7 @@ void printEnumerator(Enumerator enumer, uint64_t indent) {
 
 void printEnumeratorList(EnumeratorList enumList, uint64_t indent) {
     printIndent(indent);
-    printDebug("EnumeratorList: %lu\n", enumList.numEnumerators);
+    printDebug("EnumeratorList: %lu\n", enumList.list.size);
     sll_foreach(enumList.list, node) {
         Enumerator *enumerator = slNode_getData(node);
         printEnumerator(*enumerator, indent + BaseIndent);
@@ -4627,7 +4624,7 @@ void printDeclarationSpecifier(DeclarationSpecifier decl, uint64_t indent) {
 
 void printDeclarationSpecifierList(DeclarationSpecifierList list, uint64_t indent) {
     printIndent(indent);
-    printDebug("Declaration Specifier List: %ld\n", list.numSpecifiers);
+    printDebug("Declaration Specifier List: %ld\n", list.list.size);
     sll_foreach(list.list, node) {
         DeclarationSpecifier *decl = slNode_getData(node);
         printDeclarationSpecifier(*decl, indent + BaseIndent);
@@ -4644,7 +4641,7 @@ void printInitDeclarator(InitDeclarator init, uint64_t indent) {
 
 void printInitDeclaratorList(InitDeclaratorList list, uint64_t indent) {
     printIndent(indent);
-    printDebug("Init declarator list: %lu\n", list.numInitDeclarators);
+    printDebug("Init declarator list: %lu\n", list.list.size);
     sll_foreach(list.list, node) {
         InitDeclarator *init = slNode_getData(node);
         printInitDeclarator(*init, indent + BaseIndent);
@@ -4846,7 +4843,7 @@ void printBlockItem(BlockItem item, uint64_t indent) {
 
 void printBlockItemList(BlockItemList list, uint64_t indent) {
     printIndent(indent);
-    printDebug("Block Item List: %lu\n", list.numBlockItems);
+    printDebug("Block Item List: %lu\n", list.list.size);
 
     sll_foreach(list.list, node) {
         BlockItem *item = slNode_getData(node);
@@ -4879,7 +4876,7 @@ void printFuncDef(FuncDef def, uint64_t indent) {
     printDeclarator(def.declarator, newIndent);
 
     printIndent(newIndent);
-    printDebug("Declarations: %ld\n", def.numDeclarations);
+    printDebug("Declarations: %ld\n", def.declarations.size);
 
     sll_foreach(def.declarations, node) {
         Declaration *decl = slNode_getData(node);

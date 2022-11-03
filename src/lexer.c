@@ -10,6 +10,81 @@
 #include "array.h"
 #include "logger.h"
 
+bool consumeIntConstSuffix(Buffer *buff) {
+    if (tolower(peek(buff)) == 'u') {
+        consume(buff);
+
+        if (tolower(peek(buff)) == 'l')
+            consume(buff);
+
+        if (tolower(peek(buff)) == 'l')
+            consume(buff);
+
+        return true;
+    }
+    else if (tolower(peek(buff)) == 'l') {
+        consume(buff);
+
+        if (tolower(peek(buff)) == 'l')
+            consume(buff);
+
+        if (tolower(peek(buff)) == 'u')
+            consume(buff);
+
+        return true;
+    }
+
+    return false;
+}
+
+bool consumeFloatConstSuffix(Buffer *buff) {
+    if (tolower(peek(buff)) == 'f') {
+        consume(buff);
+        return true;
+    }
+
+    if (tolower(peek(buff)) == 'l') {
+        consume(buff);
+        return true;
+    }
+
+    return false;
+}
+
+bool consumeHexFloatExponent(Buffer *buff) {
+    if (tolower(peek(buff)) == 'p') {
+        consume(buff);
+
+        consumeIf(buff, '-');
+        consumeIf(buff, '+');
+
+        while (isdigit(buff)) {
+            consume(buff);
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool consumeDecFloatExponent(Buffer *buff) {
+    if (tolower(peek(buff)) == 'e') {
+        consume(buff);
+
+        consumeIf(buff, '-');
+        consumeIf(buff, '+');
+
+        while (isdigit(buff)) {
+            consume(buff);
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 void addLineLengthInfo(LineInfo *info, char *fileName, uint64_t line,
     uint64_t length)
 {
@@ -393,29 +468,76 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             // TODO: Should we handle strings next to each other here?
             // We currently do it in the parser
         }
-        // TODO: Prefix
-        // TODO: Suffix
         else if (isdigit(peek(buff))) {
-            size_t wholeLen = 1;
+            uint8_t *numeric = buff->bytes;
 
-            while (isdigit(peekAhead(buff, wholeLen))) {
-                wholeLen++;
+            bool lookForFloat = false;
+            bool isHex = false;
+
+            if (consumeMultiIf(buff, "0x") || consumeMultiIf(buff, "0X")) {
+                // Hex
+                isHex = true;
+
+                while (isxdigit(peek(buff))) {
+                    consume(buff);
+                }
+
+                if (!consumeIntConstSuffix(buff)) {
+                    // Try to look for floats
+                    lookForFloat = true;
+                }
             }
+            // We explicitly ignore octal numbers because it makes it easier to
+            // parse. We assume that the user has compiled the code, and that
+            // it works.
+            else {
+                // Decimal
+                while (isdigit(peek(buff))) {
+                    consume(buff);
+                }
+
+                if (!consumeIntConstSuffix(buff)) {
+                    // Try to look for floats
+                    lookForFloat = true;
+                }
+            }
+
+            if (lookForFloat && isHex) {
+                if (peek(buff) == '.') {
+                    consume(buff);
+
+                    while (isxdigit(peek(buff))) {
+                        consume(buff);
+                    }
+                }
+
+                assert(consumeHexFloatExponent(buff));
+
+                consumeFloatConstSuffix(buff);
+            }
+            else if (lookForFloat) {
+                if (peek(buff) == '.') {
+                    consume(buff);
+
+                    while (isdigit(peek(buff))) {
+                        consume(buff);
+                    }
+                }
+
+                consumeDecFloatExponent(buff);
+
+                consumeFloatConstSuffix(buff);
+            }
+
+            size_t length = (buff->bytes + buff->pos) - numeric;
 
             tok.type = Token_ConstNumeric;
-            tok.numericWhole = (String) {
-                .str = buff->bytes + buff->pos,
-                .length = wholeLen
+            tok.numeric = (String) {
+                .str = numeric,
+                .length = length
             };
 
-            col += wholeLen;
-            buff->pos += wholeLen;
-
-            if (peek(buff) == '.') {
-                assert(false);
-                // TODO: Handle Floats
-            }
-
+            col += length;
         }
         else if (peek(buff) == '\'') {
             size_t length = 1;
@@ -430,7 +552,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             length++;
 
             tok.type = Token_ConstNumeric;
-            tok.numericWhole = (String) {
+            tok.numeric = (String) {
                 .str = buff->bytes + buff->pos,
                 .length = length
             };

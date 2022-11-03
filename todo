@@ -7,10 +7,17 @@ Version 1.0:
 - Parser resilience tests round 2
 - Security audit
 
+Output:
+- If no errors, report no errors
+- At end, add a summary saying how many issues found
+
 Parser:
 - Make better error messages
     - Take the best one of all the optional statements
 - Make CST simpler?
+
+Lexer:
+- Correct integer and float constants
 
 Usage:
 - my command line args
@@ -36,3 +43,7 @@ Make lexer handle errors much better
 - Output
 - Debug
 - Log
+
+Install
+- Actual install script
+- Better way to find config file

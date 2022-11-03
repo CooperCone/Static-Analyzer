@@ -99,12 +99,7 @@ typedef struct {
         String whitespace;
         String comment;
         String constString;
-        struct {
-            String numericWhole;
-            String numericDecimal;
-            String numericSuffix;
-            String numericPrefix;
-        };
+        String numeric;
     };
 } Token;
 

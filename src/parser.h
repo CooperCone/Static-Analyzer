@@ -104,9 +104,8 @@ typedef struct {
 } GenericSelection;
 
 typedef enum {
-    Constant_Integer,
+    Constant_Numeric,
     Constant_Character,
-    Constant_Float,
 } ConstantType;
 
 // FIXME: Should we have real data for the different constants?
@@ -442,7 +441,7 @@ typedef struct AbstractDeclarator {
 } AbstractDeclarator;
 
 typedef struct {
-    SLList list;
+    SLList list; // List of strings
 } IdentifierList;
 
 typedef enum {
