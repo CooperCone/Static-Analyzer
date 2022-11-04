@@ -150,6 +150,207 @@ void rule_1_3_b(Rule rule, RuleContext context) {
     traverse(funcTable, context.translationUnit, &rule);
 }
 
+static void rule_1_4_b_dirtyTraversePostfix(TraversalFuncTable *table, PostfixExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->type != Postfix_Primary) {
+        reportRuleViolation(rule->name,
+            "Postfix expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        table->traverse_PrimaryExpr(table, &(expr->primary), data);
+    }
+}
+
+static void rule_1_4_b_dirtyTraverseUnary(TraversalFuncTable *table, UnaryExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->type != UnaryExpr_Base) {
+        reportRuleViolation(rule->name,
+            "Unary expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        rule_1_4_b_dirtyTraversePostfix(table, &(expr->baseExpr), data);
+    }
+}
+
+static void rule_1_4_b_dirtyTraverseCast(TraversalFuncTable *table, CastExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->type != CastExpr_Unary) {
+        reportRuleViolation(rule->name,
+            "Cast expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        rule_1_4_b_dirtyTraverseUnary(table, &(expr->unary), data);
+    }
+}
+
+static void rule_1_4_b_dirtyTraverseMultiplicative(TraversalFuncTable *table, MultiplicativeExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->postExprs.size > 0) {
+        reportRuleViolation(rule->name,
+            "Multiplicative expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        rule_1_4_b_dirtyTraverseCast(table, &(expr->baseExpr), data);
+    }
+}
+
+static void rule_1_4_b_dirtyTraverseAdditive(TraversalFuncTable *table, AdditiveExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->postExprs.size > 0) {
+        reportRuleViolation(rule->name,
+            "Additive expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        rule_1_4_b_dirtyTraverseMultiplicative(table, &(expr->baseExpr), data);
+    }
+}
+
+static void rule_1_4_b_dirtyTraverseShift(TraversalFuncTable *table, ShiftExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->postExprs.size > 0) {
+        reportRuleViolation(rule->name,
+            "Shift expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        rule_1_4_b_dirtyTraverseAdditive(table, &(expr->baseExpr), data);
+    }
+}
+
+static void rule_1_4_b_dirtyTraverseRelational(TraversalFuncTable *table, RelationalExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->postExprs.size > 0) {
+        reportRuleViolation(rule->name,
+            "Relational expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        rule_1_4_b_dirtyTraverseShift(table, &(expr->baseExpr), data);
+    }
+}
+
+static void rule_1_4_b_dirtyTraverseEquality(TraversalFuncTable *table, EqualityExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->postExprs.size > 0) {
+        reportRuleViolation(rule->name,
+            "Equality expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        rule_1_4_b_dirtyTraverseRelational(table, &(expr->baseExpr), data);
+    }
+}
+
+static void rule_1_4_b_dirtyTraverseAnd(TraversalFuncTable *table, AndExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->list.size > 1) {
+        reportRuleViolation(rule->name,
+            "And expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        EqualityExpr *eq = slNode_getData(expr->list.head);
+        rule_1_4_b_dirtyTraverseEquality(table, eq, data);
+    }
+}
+
+static void rule_1_4_b_dirtyTraverseExclusiveOr(TraversalFuncTable *table, ExclusiveOrExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->list.size > 1) {
+        reportRuleViolation(rule->name,
+            "Exclusive or expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        AndExpr *and = slNode_getData(expr->list.head);
+        rule_1_4_b_dirtyTraverseAnd(table, and, data);
+    }
+}
+
+static void rule_1_4_b_dirtyTraverseInclusiveOr(TraversalFuncTable *table, InclusiveOrExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->list.size > 1) {
+        reportRuleViolation(rule->name,
+            "Inclusive or expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        ExclusiveOrExpr *or = slNode_getData(expr->list.head);
+        rule_1_4_b_dirtyTraverseExclusiveOr(table, or, data);
+    }
+}
+
+static void rule_1_4_b_dirtyTraverseLogicalAnd(TraversalFuncTable *table, LogicalAndExpr *expr, void *data) {
+    Rule *rule = data;
+
+    if (expr->list.size > 1) {
+        reportRuleViolation(rule->name,
+            "Logical and expression was expected to be surrounded by parens because of a root && or ||",
+            expr->tok->fileName, expr->tok->line);
+    }
+    else {
+        InclusiveOrExpr *or = slNode_getData(expr->list.head);
+        rule_1_4_b_dirtyTraverseInclusiveOr(table, or, data);
+    }
+}
+
+static void rule_1_4_b_traverseLogicalAnd(TraversalFuncTable *table, LogicalAndExpr *expr, void *data) {
+    if (expr->list.size == 0) {
+        // I don't think this is possible
+        assert(false);
+    }
+    else if (expr->list.size == 1) {
+        defaultTraversal_LogicalAndExpr(table, expr, data);
+    }
+    else {
+        sll_foreach(expr->list, node) {
+            InclusiveOrExpr *or = slNode_getData(node);
+            rule_1_4_b_dirtyTraverseInclusiveOr(table, or, data);
+        }
+    }
+}
+
+static void rule_1_4_b_traverseLogicalOr(TraversalFuncTable *table, LogicalOrExpr *expr, void *data) {
+    if (expr->list.size == 0) {
+        // I don't think this is possible
+        assert(false);
+    }
+    else if (expr->list.size == 1) {
+        defaultTraversal_LogicalOrExpr(table, expr, data);
+    }
+    else {
+        sll_foreach(expr->list, node) {
+            LogicalAndExpr *and = slNode_getData(node);
+            rule_1_4_b_dirtyTraverseLogicalAnd(table, and, data);
+        }
+    }
+}
+
+// Verifies && and || use parens on either side for complex exprs
+void rule_1_4_b(Rule rule, RuleContext context) {
+    TraversalFuncTable funcTable = defaultTraversal();
+    funcTable.traverse_LogicalOrExpr = rule_1_4_b_traverseLogicalOr;
+    funcTable.traverse_LogicalAndExpr = rule_1_4_b_traverseLogicalAnd;
+
+    traverse(funcTable, context.translationUnit, &rule);
+}
+
 // FIXME: Rules 1.7.a and 1.7.b are pretty much identical,
 //        so they should probably be refactored
 // Verifies there is no use of auto keyword

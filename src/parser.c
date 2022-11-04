@@ -585,6 +585,8 @@ ParseRes parsePostfixOp(TokenList *tokens, PostfixOp *op) {
 }
 
 ParseRes parsePostfixExpr(TokenList *tokens, PostfixExpr *postfixExpr) {
+    postfixExpr->tok = tokens->tokens + tokens->pos;
+
     // Check if initializer list
     size_t preInitializeListPos = tokens->pos;
 
@@ -686,15 +688,9 @@ ParseRes parseUnaryExprPrefix(TokenList *tokens, UnaryExprPrefixType *type) {
     };
 }
 
-// TODO: This is NOT correct.
-// Try to parse
-//    -- unary_operator -> castExpr
-//    -- INC or DEC or sizeof -> unary
-//    -- sizeof ( typeName )
-//    -- alignof ( typeName )
-// Else parse
-//    -- postfix
 ParseRes parseUnaryExpr(TokenList *tokens, UnaryExpr *unaryExpr) {
+    unaryExpr->tok = tokens->tokens + tokens->pos;
+
     size_t pos = tokens->pos;
 
     // Try to parse a unary operator
@@ -821,6 +817,8 @@ ParseUnaryExpr_PostAlignofTypename:
 }
 
 ParseRes parseCastExpr(TokenList *tokens, CastExpr *cast) {
+    cast->tok = tokens->tokens + tokens->pos;
+
     // Look for an optional cast
     size_t castPos = tokens->pos;
 
@@ -864,6 +862,8 @@ Cast_NoCast:
 }
 
 ParseRes parseMultiplicativeExpr(TokenList *tokens, MultiplicativeExpr *multiplicativeExpr) {
+    multiplicativeExpr->tok = tokens->tokens + tokens->pos;
+
     CastExpr castExpr = {0};
     ParseRes res = parseCastExpr(tokens, &castExpr);
     if (!res.success) {
@@ -901,6 +901,8 @@ ParseRes parseMultiplicativeExpr(TokenList *tokens, MultiplicativeExpr *multipli
 }
 
 ParseRes parseAdditiveExpr(TokenList *tokens, AdditiveExpr *additiveExpr) {
+    additiveExpr->tok = tokens->tokens + tokens->pos;
+
     MultiplicativeExpr multiplicativeExpr = {0};
     ParseRes res = parseMultiplicativeExpr(tokens, &multiplicativeExpr);
     if (!res.success) {
@@ -935,6 +937,8 @@ ParseRes parseAdditiveExpr(TokenList *tokens, AdditiveExpr *additiveExpr) {
 }
 
 ParseRes parseShiftExpr(TokenList *tokens, ShiftExpr *shiftExpr) {
+    shiftExpr->tok = tokens->tokens + tokens->pos;
+
     AdditiveExpr additiveExpr = {0};
     ParseRes res = parseAdditiveExpr(tokens, &additiveExpr);
     if (!res.success) {
@@ -969,6 +973,8 @@ ParseRes parseShiftExpr(TokenList *tokens, ShiftExpr *shiftExpr) {
 }
 
 ParseRes parseRelationalExpr(TokenList *tokens, RelationalExpr *relExpr) {
+    relExpr->tok = tokens->tokens + tokens->pos;
+
     ShiftExpr shiftExpr = {0};
     ParseRes res = parseShiftExpr(tokens, &shiftExpr);
     if (!res.success) {
@@ -1008,6 +1014,8 @@ ParseRes parseRelationalExpr(TokenList *tokens, RelationalExpr *relExpr) {
 }
 
 ParseRes parseEqualityExpr(TokenList *tokens, EqualityExpr *eqExpr) {
+    eqExpr->tok = tokens->tokens + tokens->pos;
+
     RelationalExpr relExpr = {0};
     ParseRes res = parseRelationalExpr(tokens, &relExpr);
     if (!res.success) {
@@ -1042,6 +1050,8 @@ ParseRes parseEqualityExpr(TokenList *tokens, EqualityExpr *eqExpr) {
 }
 
 ParseRes parseAndExpr(TokenList *tokens, AndExpr *andExpr) {
+    andExpr->tok = tokens->tokens + tokens->pos;
+
     bool foundAndOp = false;
     do {
         EqualityExpr eqExpr = {0};
@@ -1060,6 +1070,8 @@ ParseRes parseAndExpr(TokenList *tokens, AndExpr *andExpr) {
 }
 
 ParseRes parseExclusiveOrExpr(TokenList *tokens, ExclusiveOrExpr *exclusiveOr) {
+    exclusiveOr->tok = tokens->tokens + tokens->pos;
+
     bool foundOrOp = false;
     do {
         AndExpr andExpr = {0};
@@ -1078,6 +1090,8 @@ ParseRes parseExclusiveOrExpr(TokenList *tokens, ExclusiveOrExpr *exclusiveOr) {
 }
 
 ParseRes parseInclusiveOrExpr(TokenList *tokens, InclusiveOrExpr *inclusiveOr) {
+    inclusiveOr->tok = tokens->tokens + tokens->pos;
+
     bool foundOrOp = false;
     do {
         ExclusiveOrExpr orExpr = {0};
@@ -1096,6 +1110,8 @@ ParseRes parseInclusiveOrExpr(TokenList *tokens, InclusiveOrExpr *inclusiveOr) {
 }
 
 ParseRes parseLogicalAndExpr(TokenList *tokens, LogicalAndExpr *logicalAnd) {
+    logicalAnd->tok = tokens->tokens + tokens->pos;
+
     bool foundAndOp = false;
     do {
         InclusiveOrExpr orExpr = {0};

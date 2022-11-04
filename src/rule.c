@@ -62,6 +62,7 @@ size_t generateRules(Config config, Rule **outRules) {
         { "1.2.a", rule_1_2_a },
         { "1.3.a", rule_1_3_a },
         { "1.3.b", rule_1_3_b },
+        { "1.4.b", rule_1_4_b },
         { "1.7.a", rule_1_7_a },
         { "1.7.b", rule_1_7_b },
     };

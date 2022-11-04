@@ -11,6 +11,9 @@ void rule_1_3_a(Rule rule, RuleContext context);
 // Verifies braces on own line and closing brace in same column
 void rule_1_3_b(Rule rule, RuleContext context);
 
+// Verifies && and || use parens on either side for complex exprs
+void rule_1_4_b(Rule rule, RuleContext context);
+
 // Verifies no single letter variable names
 // NOTE: Doesn't catch all abbreviations!!!
 void rule_1_5_a(Rule rule, RuleContext context);

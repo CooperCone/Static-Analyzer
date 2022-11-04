@@ -44,3 +44,8 @@ README
 Testing Framework
 - Separate error output from printing
 - Way to verify which errors occurred and where?
+
+Better reporting messages
+- 1.4.b
+    - Print what root expr caused it
+    - Print what real expr is the problem instead of type (additive != subtraction)

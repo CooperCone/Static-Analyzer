@@ -167,6 +167,7 @@ typedef enum {
 } PostfixType;
 
 typedef struct {
+    Token *tok;
     PostfixType type;
     union {
         PrimaryExpr primary;
@@ -199,6 +200,7 @@ typedef enum {
 } UnaryExprType;
 
 typedef struct UnaryExpr {
+    Token *tok;
     UnaryExprType type;
     union {
         struct {
@@ -220,6 +222,7 @@ typedef enum {
 } CastExprType;
 
 typedef struct CastExpr {
+    Token *tok;
     CastExprType type;
     union {
         UnaryExpr unary;
@@ -242,6 +245,7 @@ typedef struct {
 } MultiplicativePost;
 
 typedef struct {
+    Token *tok;
     CastExpr baseExpr;
     SLList postExprs; // MultiplicativePost
 } MultiplicativeExpr;
@@ -257,6 +261,7 @@ typedef struct {
 } AdditivePost;
 
 typedef struct {
+    Token *tok;
     MultiplicativeExpr baseExpr;
     SLList postExprs; // AdditivePost
 } AdditiveExpr;
@@ -272,6 +277,7 @@ typedef struct {
 } ShiftPost;
 
 typedef struct {
+    Token *tok;
     AdditiveExpr baseExpr;
     SLList postExprs;
 } ShiftExpr;
@@ -289,6 +295,7 @@ typedef struct {
 } RelationalPost;
 
 typedef struct {
+    Token *tok;
     ShiftExpr baseExpr;
     SLList postExprs;
 } RelationalExpr;
@@ -304,23 +311,28 @@ typedef struct {
 } EqualityPost;
 
 typedef struct {
+    Token *tok;
     RelationalExpr baseExpr;
     SLList postExprs;
 } EqualityExpr;
 
 typedef struct {
+    Token *tok;
     SLList list;
 } AndExpr;
 
 typedef struct {
+    Token *tok;
     SLList list;
 } ExclusiveOrExpr;
 
 typedef struct {
+    Token *tok;
     SLList list;
 } InclusiveOrExpr;
 
 typedef struct {
+    Token *tok;
     SLList list;
 } LogicalAndExpr;
 
