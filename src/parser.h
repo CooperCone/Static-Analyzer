@@ -790,6 +790,10 @@ typedef struct {
     };
 } JumpStatement;
 
+typedef struct {
+    uint8_t tmp;
+} AsmStatement;
+
 typedef enum {
     Statement_Labeled,
     Statement_Compound,
@@ -797,6 +801,7 @@ typedef enum {
     Statement_Selection,
     Statement_Iteration,
     Statement_Jump,
+    Statement_Asm,
 } StatementType;
 
 typedef struct Statement {
@@ -808,6 +813,7 @@ typedef struct Statement {
         IterationStatement iteration;
         JumpStatement jump;
         ExpressionStatement expression;
+        AsmStatement assembly;
     };
 } Statement;
 

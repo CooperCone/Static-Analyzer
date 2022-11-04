@@ -777,6 +777,12 @@ void defaultTraversal_JumpStatement(TraversalFuncTable *table,
     }
 }
 
+void defaultTraversal_AsmStatement(TraversalFuncTable *table,
+    AsmStatement *stmt, void *data)
+{
+    // TODO: Implement this if we fill in asm struct
+}
+
 void defaultTraversal_Statement(TraversalFuncTable *table,
     Statement *stmt, void *data)
 {
@@ -803,6 +809,10 @@ void defaultTraversal_Statement(TraversalFuncTable *table,
         }
         case Statement_Jump: {
             table->traverse_JumpStatement(table, &(stmt->jump), data);
+            break;
+        }
+        case Statement_Asm: {
+            table->traverse_AsmStatement(table, &(stmt->assembly), data);
             break;
         }
         default: {
@@ -891,6 +901,7 @@ TraversalFuncTable defaultTraversal() {
     SetDefaultTraversalFunc(BlockItemList);
     SetDefaultTraversalFunc(BlockItem);
     SetDefaultTraversalFunc(Statement);
+    SetDefaultTraversalFunc(AsmStatement);
     SetDefaultTraversalFunc(JumpStatement);
     SetDefaultTraversalFunc(IterationStatement);
     SetDefaultTraversalFunc(ExpressionStatement);

@@ -72,7 +72,7 @@ size_t generateRules(Config config, Rule **outRules) {
         ConfigValue value = config.configValues[i];
         if (value.type != ConfigValue_Map)
             continue;
-        
+
         if (strcasecmp(value.mapKey, "ignorerules") != 0)
             continue;
 

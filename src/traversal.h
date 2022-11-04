@@ -15,6 +15,7 @@ typedef struct TraversalFuncTable {
     TraversalFuncDef(BlockItemList);
     TraversalFuncDef(BlockItem);
     TraversalFuncDef(Statement);
+    TraversalFuncDef(AsmStatement);
     TraversalFuncDef(JumpStatement);
     TraversalFuncDef(IterationStatement);
     TraversalFuncDef(ExpressionStatement);

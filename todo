@@ -1,11 +1,12 @@
 Version 1.0:
 - Better logging system
     - Add in printing out to files too
+    - Logging channels
 - String stuff
 - Memory management
-- Get more hardcore about the numeric tokenization
 - Parser resilience tests round 2
 - Security audit
+- Fix segmentation fault on non preprocessed code
 
 Output:
 - If no errors, report no errors

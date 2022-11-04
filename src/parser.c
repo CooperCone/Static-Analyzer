@@ -3205,6 +3205,42 @@ ParseRes parseJumpStatement(TokenList *tokens, JumpStatement *jump) {
     }
 }
 
+ParseRes parseAsmStatement(TokenList *tokens, AsmStatement *stmt) {
+    if (consumeTok(tokens).type != Token_asm)
+        return Fail("Expected asm at beginning of asm statement");
+
+    while (peekTok(tokens).type == Token_volatile ||
+           peekTok(tokens).type == Token_inline ||
+           peekTok(tokens).type == Token_goto)
+    {
+        consumeTok(tokens);
+    }
+
+    if (consumeTok(tokens).type != '(') {
+        return Fail("Expected ( after asm token in asm statement");
+    }
+
+    uint64_t numParens = 0;
+
+    while (peekTok(tokens).type != ')' || (numParens != 0)) {
+        if (peekTok(tokens).type == '(') {
+            numParens++;
+        }
+        else if (peekTok(tokens).type == ')') {
+            numParens--;
+        }
+        consumeTok(tokens);
+    }
+
+    assert(consumeTok(tokens).type == ')');
+
+    if (consumeTok(tokens).type != ';') {
+        return Fail("Expected ; after asm statement");
+    }
+
+    return Succeed;
+}
+
 ParseRes parseStatement(TokenList *tokens, Statement *stmt) {
     size_t pos = tokens->pos;
 
@@ -3263,6 +3299,15 @@ ParseRes parseStatement(TokenList *tokens, Statement *stmt) {
     if (parseExpressionStatement(tokens, &expression).success) {
         stmt->type = Statement_Expression;
         stmt->expression = expression;
+        return (ParseRes){ .success = true };
+    }
+
+    // Parse asm statement
+    // TODO: Do we need any real data from the asm stmt?
+    AsmStatement assembly = {0};
+    if (parseAsmStatement(tokens, &assembly).success) {
+        stmt->type = Statement_Asm;
+        stmt->assembly = assembly;
         return (ParseRes){ .success = true };
     }
 
@@ -3429,7 +3474,9 @@ ParseRes parseExternalDecl(TokenList *tokens, ExternalDecl *outDecl) {
 }
 
 bool parseTokens(TokenList *tokens, TranslationUnit *outUnit) {
+    // TODO: specify these in the config file
     typedefTable_add(&g_typedefTable, astr("__builtin_va_list"));
+    typedefTable_add(&g_typedefTable, astr("_Float128"));
 
     tokens->pos = 0;
 
@@ -4796,6 +4843,11 @@ void printJumpStatement(JumpStatement jump, uint64_t indent) {
     }
 }
 
+void printAsmStatement(AsmStatement stmt, uint64_t indent) {
+    printIndent(indent);
+    printDebug("asm statement\n");
+}
+
 void printStatement(Statement stmt, uint64_t indent) {
     switch (stmt.type) {
         case Statement_Labeled: {
@@ -4820,6 +4872,10 @@ void printStatement(Statement stmt, uint64_t indent) {
         }
         case Statement_Jump: {
             printJumpStatement(stmt.jump, indent);
+            break;
+        }
+        case Statement_Asm: {
+            printAsmStatement(stmt.assembly, indent);
             break;
         }
         default: {

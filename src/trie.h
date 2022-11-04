@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 // TODO: Get the correct number of nodes including symbols
-#define NumTrieNodes (26 + 26 + 10 + 1)
+#define NumTrieNodes (26 + 26 + 10 + 1 + 1)
 
 size_t trieCharToIdx(char c);
 

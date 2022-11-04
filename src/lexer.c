@@ -88,6 +88,10 @@ bool consumeDecFloatExponent(Buffer *buff) {
 void addLineLengthInfo(LineInfo *info, char *fileName, uint64_t line,
     uint64_t length)
 {
+    if (NULL == fileName) {
+        assert(false);
+    }
+
     FileInfo *fileInfo = NULL;
     // Check to see if fileName exists
     for (size_t i = 0; i < info->numFiles; i++) {
@@ -169,8 +173,20 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
         tok.col = col;
         tok.fileName = fileName;
 
+        // Compiler Commands
+        if (consumeMultiIf(buff, "#pragma")) {
+            while (peek(buff) != '\n') {
+                consume(buff);
+            }
+
+            line++;
+            col = 1;
+
+            continue;
+        }
+
         // Line commands
-        if (consumeIf(buff, '#')) {
+        else if (consumeIf(buff, '#')) {
             while (isspace(peek(buff)))
                 consume(buff);
 
@@ -469,7 +485,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
             // We currently do it in the parser
         }
         else if (isdigit(peek(buff))) {
-            uint8_t *numeric = buff->bytes;
+            uint8_t *numeric = buff->bytes + buff->pos;
 
             bool lookForFloat = false;
             bool isHex = false;
@@ -509,11 +525,13 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
                     while (isxdigit(peek(buff))) {
                         consume(buff);
                     }
+
+                    if (!consumeHexFloatExponent(buff)) {
+                        printf("%s:%ld\n", fileName, line);
+                        assert(false);
+                    }
+                    consumeFloatConstSuffix(buff);
                 }
-
-                assert(consumeHexFloatExponent(buff));
-
-                consumeFloatConstSuffix(buff);
             }
             else if (lookForFloat) {
                 if (peek(buff) == '.') {
@@ -522,11 +540,11 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
                     while (isdigit(peek(buff))) {
                         consume(buff);
                     }
+
+                    consumeDecFloatExponent(buff);
+
+                    consumeFloatConstSuffix(buff);
                 }
-
-                consumeDecFloatExponent(buff);
-
-                consumeFloatConstSuffix(buff);
             }
 
             size_t length = (buff->bytes + buff->pos) - numeric;
@@ -590,7 +608,7 @@ void printTokens(TokenList tokens) {
     for (uint64_t i = 0; i < tokens.numTokens; i++) {
         Token tok = tokens.tokens[i];
 
-        printDebug("%ld:%ld ", tok.line, tok.col);
+        printDebug("%s:%ld:%ld ", tok.fileName, tok.line, tok.col);
 
         // Assuming this is a character token
         if (tok.type < 127) {
@@ -623,6 +641,15 @@ void printTokens(TokenList tokens) {
         printableKeyword(union)
         printableKeyword(volatile)
         printableKeyword(while)
+
+        printableKeyword(alignas)
+        printableKeyword(alignof)
+        printableKeyword(atomic)
+        printableKeyword(generic)
+        printableKeyword(noreturn)
+        printableKeyword(staticAssert)
+        printableKeyword(threadLocal)
+        printableKeyword(funcName)
 
         printableKeyword(void)
         printableKeyword(char)
@@ -670,7 +697,7 @@ void printTokens(TokenList tokens) {
             printDebug("String: %.*s\n", astr_format(tok.constString));
         }
         else if (tok.type == Token_ConstNumeric) {
-            printDebug("Number: %.*s\n", astr_format(tok.numericWhole));
+            printDebug("Number: %.*s\n", astr_format(tok.numeric));
         }
         else if (tok.type == Token_Whitespace) {
             printDebug("Whitespace\n");

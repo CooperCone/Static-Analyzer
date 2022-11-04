@@ -17,6 +17,9 @@ size_t trieCharToIdx(char c) {
     if (c == '/') {
         return 0 + 26 + 26 + 10;
     }
+    if (c == '.') {
+        return 0 + 26 + 26 + 10 + 1;
+    }
     return -1;
 }
 
