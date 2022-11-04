@@ -726,12 +726,17 @@ typedef struct {
     SelectionStatementType type;
     union {
         struct {
+            Token *ifToken;
+            Token *elseToken;
+
             Expr ifExpr;
             struct Statement *ifTrueStmt;
             bool ifHasElse;
             struct Statement *ifFalseStmt;
         };
         struct {
+            Token *switchToken;
+
             Expr switchExpr;
             struct Statement *switchStmt;
         };
@@ -753,14 +758,20 @@ typedef struct {
     IterationStatementType type;
     union {
         struct {
+            Token *whileToken;
+
             Expr whileExpr;
             struct Statement *whileStmt;
         };
         struct {
+            Token *doToken;
+
             struct Statement *doStmt;
             Expr doExpr;
         };
         struct {
+            Token *forToken;
+
             bool forHasInitialDeclaration;
             Declaration forInitialDeclaration;
             ExpressionStatement forInitialExprStmt;

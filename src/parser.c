@@ -2857,6 +2857,8 @@ ParseRes parseLabeledStatement(TokenList *tokens, LabeledStatement *stmt) {
 
 ParseRes parseSelectionStatement(TokenList *tokens, SelectionStatement *selection) {
     if (consumeIfTok(tokens, Token_if)) {
+        selection->ifToken = tokens->tokens + tokens->pos - 1;
+
         if (!consumeIfTok(tokens, '(')) {
             return (ParseRes) {
                 .success = false,
@@ -2888,6 +2890,8 @@ ParseRes parseSelectionStatement(TokenList *tokens, SelectionStatement *selectio
         memcpy(selection->ifTrueStmt, &stmt, sizeof(stmt));
 
         if (consumeIfTok(tokens, Token_else)) {
+            selection->elseToken = tokens->tokens + tokens->pos - 1;
+
             Statement elseStmt = {0};
 
             ParseRes elseStmtRes = parseStatement(tokens, &elseStmt);
@@ -2902,6 +2906,8 @@ ParseRes parseSelectionStatement(TokenList *tokens, SelectionStatement *selectio
         return (ParseRes){ .success = true };
     }
     else if (consumeIfTok(tokens, Token_switch)) {
+        selection->switchToken = tokens->tokens + tokens->pos - 1;
+
         if (!consumeIfTok(tokens, '(')) {
             return (ParseRes) {
                 .success = false,
@@ -2969,6 +2975,8 @@ ParseRes parseExpressionStatement(TokenList *tokens, ExpressionStatement *expres
 ParseRes parseIterationStatement(TokenList *tokens, IterationStatement *iteration) {
     // Try parse while
     if (consumeIfTok(tokens, Token_while)) {
+        iteration->whileToken = tokens->tokens + tokens->pos - 1;
+
         if (!consumeIfTok(tokens, '(')) {
             return (ParseRes) {
                 .success = false,
@@ -3004,6 +3012,8 @@ ParseRes parseIterationStatement(TokenList *tokens, IterationStatement *iteratio
 
     // Try parse do while
     else if (consumeIfTok(tokens, Token_do)) {
+        iteration->doToken = tokens->tokens + tokens->pos - 1;
+
         Statement stmt = {0};
         ParseRes stmtRes = parseStatement(tokens, &stmt);
         if (!stmtRes.success)
@@ -3053,6 +3063,8 @@ ParseRes parseIterationStatement(TokenList *tokens, IterationStatement *iteratio
 
     // Try parse for
     else if (consumeIfTok(tokens, Token_for)) {
+        iteration->forToken = tokens->tokens + tokens->pos - 1;
+
         if (!consumeIfTok(tokens, '(')) {
             return (ParseRes) {
                 .success = false,

@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include "traversal.h"
 
@@ -20,6 +21,85 @@ void rule_1_2_a(Rule rule, RuleContext context) {
             }
         }
     }
+}
+
+static void rule_1_3_a_traverseSelection(TraversalFuncTable *table, SelectionStatement *stmt, void *data) {
+    Rule *rule = data;
+
+    if (stmt->type == SelectionStatement_If) {
+        if (stmt->ifTrueStmt->type != Statement_Compound) {
+            reportRuleViolation(rule->name,
+                "If statement true block isn't a compound statement",
+                stmt->ifToken->fileName, stmt->ifToken->line
+            );
+        }
+
+        if (stmt->ifHasElse && stmt->ifFalseStmt->type != Statement_Compound) {
+            reportRuleViolation(rule->name,
+                "If statement false block isn't a compound statement",
+                stmt->elseToken->fileName, stmt->elseToken->line
+            );
+        }
+    }
+    else if (stmt->type == SelectionStatement_Switch) {
+        if (stmt->switchStmt->type != Statement_Compound) {
+            reportRuleViolation(rule->name,
+                "Switch statement block isn't a compound statement",
+                stmt->switchToken->fileName, stmt->switchToken->line
+            );
+        }
+    }
+    else {
+        assert(false);
+    }
+
+    // Continue traversal
+    defaultTraversal_SelectionStatement(table, stmt, data);
+}
+
+static void rule_1_3_a_traverseIteration(TraversalFuncTable *table, IterationStatement *stmt, void *data) {
+    Rule *rule = data;
+
+    if (stmt->type == IterationStatement_While) {
+        if (stmt->whileStmt->type != Statement_Compound) {
+            reportRuleViolation(rule->name,
+                "While statement block isn't a compound statement",
+                stmt->whileToken->fileName, stmt->whileToken->line
+            );
+        }
+    }
+    else if (stmt->type == IterationStatement_DoWhile) {
+        if (stmt->doStmt->type != Statement_Compound) {
+            reportRuleViolation(rule->name,
+                "Do While statement block isn't a compound statement",
+                stmt->doToken->fileName, stmt->doToken->line
+            );
+        }
+    }
+    else if (stmt->type == IterationStatement_For) {
+        if (stmt->forStmt->type != Statement_Compound) {
+            reportRuleViolation(rule->name,
+                "For statement block isn't a compound statement",
+                stmt->forToken->fileName, stmt->forToken->line
+            );
+        }
+    }
+    else {
+        assert(false);
+    }
+
+    defaultTraversal_IterationStatement(table, stmt, data);
+}
+
+// Verifies each selection and iteration statement has a compound statement
+void rule_1_3_a(Rule rule, RuleContext context) {
+    // For
+
+    TraversalFuncTable funcTable = defaultTraversal();
+    funcTable.traverse_SelectionStatement = rule_1_3_a_traverseSelection;
+    funcTable.traverse_IterationStatement = rule_1_3_a_traverseIteration;
+
+    traverse(funcTable, context.translationUnit, &rule);
 }
 
 static bool token_isOnOwnLine(Token *token) {
@@ -58,6 +138,7 @@ static void rule_1_3_b_traverseCompound(TraversalFuncTable *table, CompoundStmt 
             stmt->closeBracket->fileName, stmt->closeBracket->line);
     }
 
+    // Continue traversal
     defaultTraversal_CompoundStmt(table, stmt, data);
 }
 
@@ -67,9 +148,6 @@ void rule_1_3_b(Rule rule, RuleContext context) {
     funcTable.traverse_CompoundStmt = rule_1_3_b_traverseCompound;
 
     traverse(funcTable, context.translationUnit, &rule);
-
-    // Functions to override
-    //  - Compound Statement
 }
 
 // FIXME: Rules 1.7.a and 1.7.b are pretty much identical,
