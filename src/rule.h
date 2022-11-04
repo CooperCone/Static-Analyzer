@@ -1,12 +1,14 @@
 #pragma once
 
 #include "lexer.h"
+#include "parser.h"
 #include "config.h"
 
 typedef struct {
     char *fileName;
     TokenList tokens;
     LineInfo lineInfo;
+    TranslationUnit translationUnit;
 } RuleContext;
 
 typedef struct Rule Rule;

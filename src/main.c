@@ -77,6 +77,7 @@ int main(int argc, char **argv) {
             .fileName = argv[i],
             .tokens = tokens,
             .lineInfo = lineInfo,
+            .translationUnit = unit,
         };
 
         for (uint64_t i = 0; i < numRules; i++) {

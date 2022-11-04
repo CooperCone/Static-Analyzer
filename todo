@@ -2,9 +2,7 @@ Version 1.0:
 - Better logging system
     - Add in printing out to files too
     - Logging channels
-- String stuff
 - Memory management
-- Parser resilience tests round 2
 - Security audit
 - Fix segmentation fault on non preprocessed code
 
@@ -16,14 +14,11 @@ Parser:
 - Make better error messages
     - Take the best one of all the optional statements
 - Make CST simpler?
-
-Lexer:
-- Correct integer and float constants
+- Easy way to refer back to tokens
 
 Usage:
 - my command line args
 - files to run
-- gcc command line args (defines, include paths, warnings)
 
 Config
 - Comments for rules
@@ -34,17 +29,18 @@ Config
     - Add in automatic type checking?
     - Add in default params?
 
-Preprocess files
-
-Convert CST to AST
-
 Make lexer handle errors much better
-
-3 types of output
-- Output
-- Debug
-- Log
 
 Install
 - Actual install script
 - Better way to find config file
+- Install instructions
+
+README
+- Install instructions
+- Usage instructions
+- Known errors and limitations
+
+Testing Framework
+- Separate error output from printing
+- Way to verify which errors occurred and where?

@@ -835,6 +835,9 @@ typedef struct {
 } BlockItemList;
 
 typedef struct CompoundStmt {
+    Token *openBracket;
+    Token *closeBracket;
+
     bool isEmpty;
     BlockItemList blockItemList;
 } CompoundStmt;

@@ -1,5 +1,9 @@
 #include <stdbool.h>
 
+typedef struct {
+    int tmpvalue;
+} ThisIsAStruct;
+
 void doSomething()
 {
 

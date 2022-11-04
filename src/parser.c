@@ -3379,7 +3379,14 @@ ParseRes parseCompoundStmt(TokenList *tokens, CompoundStmt *outStmt) {
         };
     }
 
+    // Set hooks back to original token
+    // TODO: Make this into a macro?
+    outStmt->openBracket = tokens->tokens + tokens->pos - 1;
+
     if (consumeIfTok(tokens, '}')) {
+        // TODO: Make this into a macro?
+        outStmt->closeBracket = tokens->tokens + tokens->pos - 1;
+
         outStmt->isEmpty = true;
         return (ParseRes){ .success = true };
     }
@@ -3395,6 +3402,9 @@ ParseRes parseCompoundStmt(TokenList *tokens, CompoundStmt *outStmt) {
             .failMessage = "Expected } after block item list in compound stmt"
         };
     }
+
+    // TODO: Make this into a macro?
+    outStmt->closeBracket = tokens->tokens + tokens->pos - 1;
 
     outStmt->isEmpty = false;
     outStmt->blockItemList = list;

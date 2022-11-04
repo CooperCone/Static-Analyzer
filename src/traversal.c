@@ -408,6 +408,9 @@ void defaultTraversal_DirectAbstractDeclarator(TraversalFuncTable *table,
 void defaultTraversal_Pointer(TraversalFuncTable *table,
     Pointer *pointer, void *data)
 {
+    if (pointer == NULL)
+        return;
+
     sll_foreach(pointer->typeQualifiers, node) {
         TypeQualifier *qual = slNode_getData(node);
         table->traverse_TypeQualifier(table, qual, data);
