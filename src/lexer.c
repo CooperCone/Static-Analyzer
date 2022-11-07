@@ -172,6 +172,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
         tok.line = line;
         tok.col = col;
         tok.fileName = fileName;
+        tok.fileIndex = buffer.pos;
 
         // Compiler Commands
         if (consumeMultiIf(buff, "#pragma")) {

@@ -94,6 +94,7 @@ typedef struct {
     uint64_t line;
     uint64_t col;
     char *fileName;
+    size_t fileIndex;
     union {
         String ident;
         String whitespace;

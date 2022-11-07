@@ -75,6 +75,7 @@ int main(int argc, char **argv) {
         // Run all rules
         RuleContext context = {
             .fileName = argv[i],
+            .fileBuffer = fileBuff,
             .tokens = tokens,
             .lineInfo = lineInfo,
             .translationUnit = unit,

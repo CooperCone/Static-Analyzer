@@ -3,9 +3,11 @@
 #include "lexer.h"
 #include "parser.h"
 #include "config.h"
+#include "buffer.h"
 
 typedef struct {
     char *fileName;
+    Buffer fileBuffer;
     TokenList tokens;
     LineInfo lineInfo;
     TranslationUnit translationUnit;

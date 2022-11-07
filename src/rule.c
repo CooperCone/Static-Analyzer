@@ -7,6 +7,7 @@
 #include "trie.h"
 #include "logger.h"
 #include "generalRules.h"
+#include "whitespaceRules.h"
 
 #define TermColorRed "\033[0;31m"
 #define TermColorCyan "\033[1;36m"
@@ -65,6 +66,7 @@ size_t generateRules(Config config, Rule **outRules) {
         { "1.4.b", rule_1_4_b },
         { "1.7.a", rule_1_7_a },
         { "1.7.b", rule_1_7_b },
+        { "3.1.a", rule_3_1_a },
     };
     size_t baseRuleCount = sizeof(baseRules) / sizeof(Rule);
 
