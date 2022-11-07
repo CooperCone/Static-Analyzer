@@ -16,7 +16,7 @@ Comment Rules
 2.1.b - Lexer
 
 Whitespace Rules
-3.1.a - Lexer
+* 3.1.a - Lexer
 3.1.b - Lexer
 3.1.c - AST -> Lexer
 3.1.d - AST -> Lexer

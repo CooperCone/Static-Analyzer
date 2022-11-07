@@ -421,7 +421,7 @@ bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outLines) {
         DoubleCharacterOp("-=", Token_SubAssign)
         DoubleCharacterOp("*=", Token_MulAssign)
         DoubleCharacterOp("/=", Token_DivAssign)
-        DoubleCharacterOp("%%=", Token_ModAssign)
+        DoubleCharacterOp("%=", Token_ModAssign)
         DoubleCharacterOp("&=", Token_AndAssign)
         DoubleCharacterOp("^=", Token_XorAssign)
         DoubleCharacterOp("|=", Token_OrAssign)
