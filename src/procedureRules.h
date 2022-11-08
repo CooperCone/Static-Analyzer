@@ -15,3 +15,6 @@ void rule_6_1_c(Rule rule, RuleContext context);
 
 // Procedures cannot have a name thats longer than 31 characters
 void rule_6_1_d(Rule rule, RuleContext context);
+
+// Procedures cannot have a name with uppercase letters
+void rule_6_1_e(Rule rule, RuleContext context);

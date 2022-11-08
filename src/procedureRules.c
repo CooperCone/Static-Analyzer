@@ -1,5 +1,7 @@
 #include "procedureRules.h"
 
+#include <ctype.h>
+
 #include "traversal.h"
 
 static void rule_6_1_a_traverseFuncDef(TraversalFuncTable *table, FuncDef *def, void *data) {
@@ -103,6 +105,29 @@ static void rule_6_1_d_traverseFuncDef(TraversalFuncTable *table, FuncDef *def, 
 void rule_6_1_d(Rule rule, RuleContext context) {
     TraversalFuncTable table = defaultTraversal();
     table.traverse_FuncDef = rule_6_1_d_traverseFuncDef;
+
+    traverse(table, context.translationUnit, &rule);
+}
+
+static void rule_6_1_e_traverseFuncDef(TraversalFuncTable *table, FuncDef *def, void *data) {
+    Rule *rule = data;
+
+    String name = directDeclarator_getName(def->declarator.directDeclarator);
+    Token *tok = def->declarator.tok;
+
+    for (size_t i = 0; i < name.length; i++) {
+        if (isupper(name.str[i])) {
+            reportRuleViolation(rule->name, tok->fileName, tok->line,
+                "%s", "Procedure cannot have a name with uppercase letters");
+            break;
+        }
+    }
+}
+
+// Procedures cannot have a name with uppercase letters
+void rule_6_1_e(Rule rule, RuleContext context) {
+    TraversalFuncTable table = defaultTraversal();
+    table.traverse_FuncDef = rule_6_1_e_traverseFuncDef;
 
     traverse(table, context.translationUnit, &rule);
 }

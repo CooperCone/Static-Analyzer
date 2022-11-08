@@ -1,0 +1,9 @@
+void thisIsAnInvalidName()
+{
+
+}
+
+int main()
+{
+
+}

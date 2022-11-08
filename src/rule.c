@@ -84,6 +84,7 @@ size_t generateRules(Config config, Rule **outRules) {
         { "6.1.b", rule_6_1_b },
         { "6.1.c", rule_6_1_c },
         { "6.1.d", rule_6_1_d },
+        { "6.1.e", rule_6_1_e },
     };
     size_t baseRuleCount = sizeof(baseRules) / sizeof(Rule);
 
