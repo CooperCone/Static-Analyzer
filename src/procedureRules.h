@@ -12,3 +12,6 @@ void rule_6_1_b(Rule rule, RuleContext context);
 
 // Procedures cannot have a name that starts with an _
 void rule_6_1_c(Rule rule, RuleContext context);
+
+// Procedures cannot have a name thats longer than 31 characters
+void rule_6_1_d(Rule rule, RuleContext context);

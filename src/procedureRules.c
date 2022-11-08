@@ -86,3 +86,23 @@ void rule_6_1_c(Rule rule, RuleContext context) {
 
     traverse(table, context.translationUnit, &rule);
 }
+
+static void rule_6_1_d_traverseFuncDef(TraversalFuncTable *table, FuncDef *def, void *data) {
+    Rule *rule = data;
+
+    String name = directDeclarator_getName(def->declarator.directDeclarator);
+    Token *tok = def->declarator.tok;
+
+    if (name.length > 31) {
+        reportRuleViolation(rule->name, tok->fileName, tok->line,
+            "%s", "Procedure cannot have name thats longer than 31 characters");
+    }
+}
+
+// Procedures cannot have a name thats longer than 31 characters
+void rule_6_1_d(Rule rule, RuleContext context) {
+    TraversalFuncTable table = defaultTraversal();
+    table.traverse_FuncDef = rule_6_1_d_traverseFuncDef;
+
+    traverse(table, context.translationUnit, &rule);
+}
