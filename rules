@@ -63,8 +63,9 @@ Data Type Rules
 5.6.b - Symbol Table, AST
 
 Procedure Rules
-6.1.a - AST
-6.1.c - AST
+* 6.1.a - AST
+* 6.1.b - AST
+* 6.1.c - AST
 6.1.d - AST
 6.1.e - AST
 6.1.g - AST

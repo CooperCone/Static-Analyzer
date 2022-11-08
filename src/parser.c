@@ -1957,6 +1957,8 @@ ParseRes parseDirectDeclarator(TokenList *tokens, DirectDeclarator *directDeclar
 }
 
 ParseRes parseDeclarator(TokenList *tokens, Declarator *declarator) {
+    declarator->tok = tokens->tokens + tokens->pos;
+
     // Try parse pointer
     size_t prePointerPos = tokens->pos;
 

@@ -20,3 +20,8 @@ bool astr_cmp(String left, String right) {
 
     return true;
 }
+
+bool astr_ccmp(String left, char *right) {
+    String rightStr = astr(right);
+    return astr_cmp(left, rightStr);
+}

@@ -515,7 +515,11 @@ typedef struct {
     SLList postDirectDeclarators;
 } DirectDeclarator;
 
+// TODO: Move this to a dedicated ast file
+String directDeclarator_getName(DirectDeclarator declarator);
+
 typedef struct Declarator {
+    Token *tok;
     bool hasPointer;
     Pointer pointer;
     DirectDeclarator directDeclarator;
