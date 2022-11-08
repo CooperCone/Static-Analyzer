@@ -15,8 +15,8 @@ void rule_1_2_a(Rule rule, RuleContext context) {
         for (size_t ii = 0; ii < file.numLines; ii++) {
             if (file.lineLengths[ii] > 81) {
                 reportRuleViolation(rule.name,
-                    "Lines no longer than 80 characters",
-                    file.fileName, ii + 1
+                    file.fileName, ii + 1,
+                    "%s", "Lines no longer than 80 characters"
                 );
             }
         }
@@ -29,23 +29,23 @@ static void rule_1_3_a_traverseSelection(TraversalFuncTable *table, SelectionSta
     if (stmt->type == SelectionStatement_If) {
         if (stmt->ifTrueStmt->type != Statement_Compound) {
             reportRuleViolation(rule->name,
-                "If statement true block isn't a compound statement",
-                stmt->ifToken->fileName, stmt->ifToken->line
+                stmt->ifToken->fileName, stmt->ifToken->line,
+                "%s", "If statement true block isn't a compound statement"
             );
         }
 
         if (stmt->ifHasElse && stmt->ifFalseStmt->type != Statement_Compound) {
             reportRuleViolation(rule->name,
-                "If statement false block isn't a compound statement",
-                stmt->elseToken->fileName, stmt->elseToken->line
+                stmt->elseToken->fileName, stmt->elseToken->line,
+                "%s", "If statement false block isn't a compound statement"
             );
         }
     }
     else if (stmt->type == SelectionStatement_Switch) {
         if (stmt->switchStmt->type != Statement_Compound) {
             reportRuleViolation(rule->name,
-                "Switch statement block isn't a compound statement",
-                stmt->switchToken->fileName, stmt->switchToken->line
+                stmt->switchToken->fileName, stmt->switchToken->line,
+                "%s", "Switch statement block isn't a compound statement"
             );
         }
     }
@@ -63,24 +63,24 @@ static void rule_1_3_a_traverseIteration(TraversalFuncTable *table, IterationSta
     if (stmt->type == IterationStatement_While) {
         if (stmt->whileStmt->type != Statement_Compound) {
             reportRuleViolation(rule->name,
-                "While statement block isn't a compound statement",
-                stmt->whileToken->fileName, stmt->whileToken->line
+                stmt->whileToken->fileName, stmt->whileToken->line,
+                "%s", "While statement block isn't a compound statement"
             );
         }
     }
     else if (stmt->type == IterationStatement_DoWhile) {
         if (stmt->doStmt->type != Statement_Compound) {
             reportRuleViolation(rule->name,
-                "Do While statement block isn't a compound statement",
-                stmt->doToken->fileName, stmt->doToken->line
+                stmt->doToken->fileName, stmt->doToken->line,
+                "%s", "Do While statement block isn't a compound statement"
             );
         }
     }
     else if (stmt->type == IterationStatement_For) {
         if (stmt->forStmt->type != Statement_Compound) {
             reportRuleViolation(rule->name,
-                "For statement block isn't a compound statement",
-                stmt->forToken->fileName, stmt->forToken->line
+                stmt->forToken->fileName, stmt->forToken->line,
+                "%s", "For statement block isn't a compound statement"
             );
         }
     }
@@ -121,21 +121,24 @@ static void rule_1_3_b_traverseCompound(TraversalFuncTable *table, CompoundStmt 
     // Check if open and close brackets are alone on their line
     if (!token_isOnOwnLine(stmt->openBracket)) {
         reportRuleViolation(rule->name,
-            "Open curly bracket must be alone on its line",
-            stmt->openBracket->fileName, stmt->openBracket->line);
+            stmt->openBracket->fileName, stmt->openBracket->line,
+            "%s", "Open curly bracket must be alone on its line"
+        );
     }
 
     if (!token_isOnOwnLine(stmt->closeBracket)) {
         reportRuleViolation(rule->name,
-            "Closing curly bracket must be alone on its line",
-            stmt->closeBracket->fileName, stmt->closeBracket->line);
+            stmt->closeBracket->fileName, stmt->closeBracket->line,
+            "%s", "Closing curly bracket must be alone on its line"
+        );
     }
 
     // Check if open and close brackets are on the same column
     if (stmt->openBracket->col != stmt->closeBracket->col) {
         reportRuleViolation(rule->name,
-            "Open and close curly bracket must be on same column",
-            stmt->closeBracket->fileName, stmt->closeBracket->line);
+            stmt->closeBracket->fileName, stmt->closeBracket->line,
+            "%s", "Open and close curly bracket must be on same column"
+        );
     }
 
     // Continue traversal
@@ -155,8 +158,9 @@ static void rule_1_4_b_dirtyTraversePostfix(TraversalFuncTable *table, PostfixEx
 
     if (expr->type != Postfix_Primary) {
         reportRuleViolation(rule->name,
-            "Postfix expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "Postfix expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         table->traverse_PrimaryExpr(table, &(expr->primary), data);
@@ -168,8 +172,9 @@ static void rule_1_4_b_dirtyTraverseUnary(TraversalFuncTable *table, UnaryExpr *
 
     if (expr->type != UnaryExpr_Base) {
         reportRuleViolation(rule->name,
-            "Unary expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "Unary expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         rule_1_4_b_dirtyTraversePostfix(table, &(expr->baseExpr), data);
@@ -181,8 +186,9 @@ static void rule_1_4_b_dirtyTraverseCast(TraversalFuncTable *table, CastExpr *ex
 
     if (expr->type != CastExpr_Unary) {
         reportRuleViolation(rule->name,
-            "Cast expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "Cast expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         rule_1_4_b_dirtyTraverseUnary(table, &(expr->unary), data);
@@ -194,8 +200,9 @@ static void rule_1_4_b_dirtyTraverseMultiplicative(TraversalFuncTable *table, Mu
 
     if (expr->postExprs.size > 0) {
         reportRuleViolation(rule->name,
-            "Multiplicative expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "Multiplicative expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         rule_1_4_b_dirtyTraverseCast(table, &(expr->baseExpr), data);
@@ -207,8 +214,9 @@ static void rule_1_4_b_dirtyTraverseAdditive(TraversalFuncTable *table, Additive
 
     if (expr->postExprs.size > 0) {
         reportRuleViolation(rule->name,
-            "Additive expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "Additive expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         rule_1_4_b_dirtyTraverseMultiplicative(table, &(expr->baseExpr), data);
@@ -220,8 +228,9 @@ static void rule_1_4_b_dirtyTraverseShift(TraversalFuncTable *table, ShiftExpr *
 
     if (expr->postExprs.size > 0) {
         reportRuleViolation(rule->name,
-            "Shift expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "Shift expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         rule_1_4_b_dirtyTraverseAdditive(table, &(expr->baseExpr), data);
@@ -233,8 +242,9 @@ static void rule_1_4_b_dirtyTraverseRelational(TraversalFuncTable *table, Relati
 
     if (expr->postExprs.size > 0) {
         reportRuleViolation(rule->name,
-            "Relational expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "Relational expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         rule_1_4_b_dirtyTraverseShift(table, &(expr->baseExpr), data);
@@ -246,8 +256,9 @@ static void rule_1_4_b_dirtyTraverseEquality(TraversalFuncTable *table, Equality
 
     if (expr->postExprs.size > 0) {
         reportRuleViolation(rule->name,
-            "Equality expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "Equality expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         rule_1_4_b_dirtyTraverseRelational(table, &(expr->baseExpr), data);
@@ -259,8 +270,9 @@ static void rule_1_4_b_dirtyTraverseAnd(TraversalFuncTable *table, AndExpr *expr
 
     if (expr->list.size > 1) {
         reportRuleViolation(rule->name,
-            "And expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "And expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         EqualityExpr *eq = slNode_getData(expr->list.head);
@@ -273,8 +285,9 @@ static void rule_1_4_b_dirtyTraverseExclusiveOr(TraversalFuncTable *table, Exclu
 
     if (expr->list.size > 1) {
         reportRuleViolation(rule->name,
-            "Exclusive or expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "Exclusive or expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         AndExpr *and = slNode_getData(expr->list.head);
@@ -287,8 +300,9 @@ static void rule_1_4_b_dirtyTraverseInclusiveOr(TraversalFuncTable *table, Inclu
 
     if (expr->list.size > 1) {
         reportRuleViolation(rule->name,
-            "Inclusive or expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "Inclusive or expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         ExclusiveOrExpr *or = slNode_getData(expr->list.head);
@@ -301,8 +315,9 @@ static void rule_1_4_b_dirtyTraverseLogicalAnd(TraversalFuncTable *table, Logica
 
     if (expr->list.size > 1) {
         reportRuleViolation(rule->name,
-            "Logical and expression was expected to be surrounded by parens because of a root && or ||",
-            expr->tok->fileName, expr->tok->line);
+            expr->tok->fileName, expr->tok->line,
+            "%s", "Logical and expression was expected to be surrounded by parens because of a root && or ||"
+        );
     }
     else {
         InclusiveOrExpr *or = slNode_getData(expr->list.head);
@@ -359,8 +374,9 @@ void rule_1_7_a(Rule rule, RuleContext context) {
         Token tok = context.tokens.tokens[i];
         if (tok.type == Token_auto) {
             reportRuleViolation(rule.name,
-                "Use of auto keyword is prohibited",
-                context.fileName, tok.line);
+                context.fileName, tok.line,
+                "%s", "Use of auto keyword is prohibited"
+            );
         }
     }
 }
@@ -371,8 +387,9 @@ void rule_1_7_b(Rule rule, RuleContext context) {
         Token tok = context.tokens.tokens[i];
         if (tok.type == Token_register) {
             reportRuleViolation(rule.name,
-                "Use of register keyword is prohibited",
-                context.fileName, tok.line);
+                context.fileName, tok.line,
+                "%s", "Use of register keyword is prohibited"
+            );
         }
     }
 }

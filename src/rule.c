@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "trie.h"
 #include "logger.h"
@@ -43,19 +44,26 @@ void findRuleIgnorePaths(Config config) {
     }
 }
 
-void reportRuleViolation(char *ruleName, char *description,
-    char *fileName, uint64_t line)
+void reportRuleViolation(char *ruleName, char *fileName, uint64_t line,
+    char *descriptionFormat, ...)
 {
     if (trie_matchEarlyTerm(&validFileNames, fileName)) {
         return;
     }
+
+    va_list list = {0};
+    va_start(list, descriptionFormat);
 
     printf(TermColorRed);
     printf("Error: ");
     printf(TermColorCyan);
     printf("%s:%ld - ", fileName, line);
     printf(TermColorReset);
-    printf("%s - %s\n", ruleName, description);
+    printf("%s - ", ruleName);
+    vprintf(descriptionFormat, list);
+    printf("\n");
+
+    va_end(list);
 }
 
 size_t generateRules(Config config, Rule **outRules) {

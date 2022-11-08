@@ -24,7 +24,7 @@ struct Rule {
 
 size_t generateRules(Config config, Rule **outRules);
 
-void reportRuleViolation(char *name, char *description,
-    char *fileName, uint64_t line);
+void reportRuleViolation(char *name, char *fileName, uint64_t line,
+    char *descriptionFormat, ...);
 
 void findRuleIgnorePaths(Config config);

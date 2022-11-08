@@ -60,16 +60,8 @@ void rule_3_1_a(Rule rule, RuleContext context) {
         }
 
         if (!hasSpaceAfterToken) {
-            const char *msgBase = "has no trailing space character";
-
-            int length = snprintf(NULL, 0, "%s %s", keywordString, msgBase);
-            char *msg = calloc(length + 1, sizeof(char));
-            snprintf(msg, length + 1, "%s %s", keywordString, msgBase);
-
-            reportRuleViolation(rule.name,
-                msg, token.fileName, token.line);
-
-            free(msg);
+            reportRuleViolation(rule.name, token.fileName, token.line,
+                "%s %s", keywordString, "has no trailing space character");
         }
     }
 }
@@ -106,29 +98,13 @@ void rule_3_1_b(Rule rule, RuleContext context) {
         bool hasSpaceBeforeToken = checkForLeadingSpace(context, token);
 
         if (!hasSpaceAfterToken) {
-            const char *msgBase = "has no trailing space character";
-
-            int length = snprintf(NULL, 0, "%s %s", opString, msgBase);
-            char *msg = calloc(length + 1, sizeof(char));
-            snprintf(msg, length + 1, "%s %s", opString, msgBase);
-
-            reportRuleViolation(rule.name,
-                msg, token.fileName, token.line);
-
-            free(msg);
+            reportRuleViolation(rule.name, token.fileName, token.line,
+                "%s %s", opString, "has no trailing space character");
         }
 
         if (!hasSpaceBeforeToken) {
-            const char *msgBase = "has no leading space character";
-
-            int length = snprintf(NULL, 0, "%s %s", opString, msgBase);
-            char *msg = calloc(length + 1, sizeof(char));
-            snprintf(msg, length + 1, "%s %s", opString, msgBase);
-
-            reportRuleViolation(rule.name,
-                msg, token.fileName, token.line);
-
-            free(msg);
+            reportRuleViolation(rule.name, token.fileName, token.line,
+                "%s %s", opString, "has no leading space character");
         }
     }
 }
@@ -158,23 +134,13 @@ static void rule_3_1_c_traverseMultiplicative(TraversalFuncTable *table, Multipl
             assert(false);
 
         if (!checkForLeadingSpace(context, *(post->tok))) {
-            char *leadingMsgBase = "%s has no leading space character";
-            int length = snprintf(NULL, 0, leadingMsgBase, multiplicativeStr);
-            char *leadingMsg = calloc(length + 1, sizeof(char));
-            snprintf(leadingMsg, length + 1, leadingMsgBase, multiplicativeStr);
-
-            reportRuleViolation(rule.name, leadingMsg,
-                post->tok->fileName, post->tok->line);
+            reportRuleViolation(rule.name, post->tok->fileName, post->tok->line,
+                "%s %s", multiplicativeStr, "has no leading space character");
         }
 
         if (!checkForTrailingSpace(context, *(post->tok), strlen(multiplicativeStr))) {
-            char *trailingMsgBase = "%s has no trailing space character";
-            int length = snprintf(NULL, 0, trailingMsgBase, multiplicativeStr);
-            char *trailingMsg = calloc(length + 1, sizeof(char));
-            snprintf(trailingMsg, length + 1, trailingMsgBase, multiplicativeStr);
-
-            reportRuleViolation(rule.name, trailingMsg,
-                post->tok->fileName, post->tok->line);
+            reportRuleViolation(rule.name, post->tok->fileName, post->tok->line,
+                "%s %s", multiplicativeStr, "has no trailing space character");
         }
     }
 
@@ -199,23 +165,13 @@ static void rule_3_1_c_traverseAdditive(TraversalFuncTable *table, AdditiveExpr 
             assert(false);
 
         if (!checkForLeadingSpace(context, *(post->tok))) {
-            char *leadingMsgBase = "%s has no leading space character";
-            int length = snprintf(NULL, 0, leadingMsgBase, additiveStr);
-            char *leadingMsg = calloc(length + 1, sizeof(char));
-            snprintf(leadingMsg, length + 1, leadingMsgBase, additiveStr);
-
-            reportRuleViolation(rule.name, leadingMsg,
-                post->tok->fileName, post->tok->line);
+            reportRuleViolation(rule.name, post->tok->fileName, post->tok->line,
+                "%s %s", additiveStr, "has no leading space character");
         }
 
         if (!checkForTrailingSpace(context, *(post->tok), strlen(additiveStr))) {
-            char *trailingMsgBase = "%s has no trailing space character";
-            int length = snprintf(NULL, 0, trailingMsgBase, additiveStr);
-            char *trailingMsg = calloc(length + 1, sizeof(char));
-            snprintf(trailingMsg, length + 1, trailingMsgBase, additiveStr);
-
-            reportRuleViolation(rule.name, trailingMsg,
-                post->tok->fileName, post->tok->line);
+            reportRuleViolation(rule.name, post->tok->fileName, post->tok->line,
+                "%s %s", additiveStr, "has no trailing space character");
         }
     }
 
@@ -240,23 +196,13 @@ static void rule_3_1_c_traverseShift(TraversalFuncTable *table, ShiftExpr *expr,
             assert(false);
 
         if (!checkForLeadingSpace(context, *(post->tok))) {
-            char *leadingMsgBase = "%s has no leading space character";
-            int length = snprintf(NULL, 0, leadingMsgBase, shiftStr);
-            char *leadingMsg = calloc(length + 1, sizeof(char));
-            snprintf(leadingMsg, length + 1, leadingMsgBase, shiftStr);
-
-            reportRuleViolation(rule.name, leadingMsg,
-                post->tok->fileName, post->tok->line);
+            reportRuleViolation(rule.name, post->tok->fileName, post->tok->line,
+                "%s %s", shiftStr, "has no leading space character");
         }
 
         if (!checkForTrailingSpace(context, *(post->tok), strlen(shiftStr))) {
-            char *trailingMsgBase = "%s has no trailing space character";
-            int length = snprintf(NULL, 0, trailingMsgBase, shiftStr);
-            char *trailingMsg = calloc(length + 1, sizeof(char));
-            snprintf(trailingMsg, length + 1, trailingMsgBase, shiftStr);
-
-            reportRuleViolation(rule.name, trailingMsg,
-                post->tok->fileName, post->tok->line);
+            reportRuleViolation(rule.name, post->tok->fileName, post->tok->line,
+                "%s %s", shiftStr, "has no trailing space character");
         }
     }
 
@@ -285,23 +231,13 @@ static void rule_3_1_c_traverseRelational(TraversalFuncTable *table, RelationalE
             assert(false);
 
         if (!checkForLeadingSpace(context, *(post->tok))) {
-            char *leadingMsgBase = "%s has no leading space character";
-            int length = snprintf(NULL, 0, leadingMsgBase, relationalStr);
-            char *leadingMsg = calloc(length + 1, sizeof(char));
-            snprintf(leadingMsg, length + 1, leadingMsgBase, relationalStr);
-
-            reportRuleViolation(rule.name, leadingMsg,
-                post->tok->fileName, post->tok->line);
+            reportRuleViolation(rule.name, post->tok->fileName, post->tok->line,
+                "%s %s", relationalStr, "has no leading space character");
         }
 
         if (!checkForTrailingSpace(context, *(post->tok), strlen(relationalStr))) {
-            char *trailingMsgBase = "%s has no trailing space character";
-            int length = snprintf(NULL, 0, trailingMsgBase, relationalStr);
-            char *trailingMsg = calloc(length + 1, sizeof(char));
-            snprintf(trailingMsg, length + 1, trailingMsgBase, relationalStr);
-
-            reportRuleViolation(rule.name, trailingMsg,
-                post->tok->fileName, post->tok->line);
+            reportRuleViolation(rule.name, post->tok->fileName, post->tok->line,
+                "%s %s", relationalStr, "has no trailing space character");
         }
     }
 
@@ -326,23 +262,13 @@ static void rule_3_1_c_traverseEquality(TraversalFuncTable *table, EqualityExpr 
             assert(false);
 
         if (!checkForLeadingSpace(context, *(post->tok))) {
-            char *leadingMsgBase = "%s has no leading space character";
-            int length = snprintf(NULL, 0, leadingMsgBase, equalityStr);
-            char *leadingMsg = calloc(length + 1, sizeof(char));
-            snprintf(leadingMsg, length + 1, leadingMsgBase, equalityStr);
-
-            reportRuleViolation(rule.name, leadingMsg,
-                post->tok->fileName, post->tok->line);
+            reportRuleViolation(rule.name, post->tok->fileName, post->tok->line,
+                "%s %s", equalityStr, "has no leading space character");
         }
 
         if (!checkForTrailingSpace(context, *(post->tok), strlen(equalityStr))) {
-            char *trailingMsgBase = "%s has no trailing space character";
-            int length = snprintf(NULL, 0, trailingMsgBase, equalityStr);
-            char *trailingMsg = calloc(length + 1, sizeof(char));
-            snprintf(trailingMsg, length + 1, trailingMsgBase, equalityStr);
-
-            reportRuleViolation(rule.name, trailingMsg,
-                post->tok->fileName, post->tok->line);
+            reportRuleViolation(rule.name, post->tok->fileName, post->tok->line,
+                "%s %s", equalityStr, "has no trailing space character");
         }
     }
 
@@ -367,13 +293,13 @@ static void rule_3_1_c_traverseAnd(TraversalFuncTable *table, AndExpr *expr, voi
             Token *tok = eq->tok - 1;
 
             if (!checkForLeadingSpace(context, *tok)) {
-                reportRuleViolation(rule.name, "& has no leading space character",
-                    tok->fileName, tok->line);
+                reportRuleViolation(rule.name, tok->fileName, tok->line,
+                    "& has no leading space character");
             }
 
             if (!checkForTrailingSpace(context, *tok, strlen("&"))) {
-                reportRuleViolation(rule.name, "& has no trailing space character",
-                    tok->fileName, tok->line);
+                reportRuleViolation(rule.name, tok->fileName, tok->line,
+                    "& has no trailing space character");
             }
         }
     }
@@ -399,13 +325,13 @@ static void rule_3_1_c_traverseExclusiveOr(TraversalFuncTable *table, ExclusiveO
             Token *tok = and->tok - 1;
 
             if (!checkForLeadingSpace(context, *tok)) {
-                reportRuleViolation(rule.name, "^ has no leading space character",
-                    tok->fileName, tok->line);
+                reportRuleViolation(rule.name, tok->fileName, tok->line,
+                    "^ has no leading space character");
             }
 
             if (!checkForTrailingSpace(context, *tok, strlen("^"))) {
-                reportRuleViolation(rule.name, "^ has no trailing space character",
-                    tok->fileName, tok->line);
+                reportRuleViolation(rule.name, tok->fileName, tok->line,
+                    "^ has no trailing space character");
             }
         }
     }
@@ -431,13 +357,13 @@ static void rule_3_1_c_traverseInclusiveOr(TraversalFuncTable *table, InclusiveO
             Token *tok = or->tok - 1;
 
             if (!checkForLeadingSpace(context, *tok)) {
-                reportRuleViolation(rule.name, "| has no leading space character",
-                    tok->fileName, tok->line);
+                reportRuleViolation(rule.name, tok->fileName, tok->line,
+                    "| has no leading space character");
             }
 
             if (!checkForTrailingSpace(context, *tok, strlen("|"))) {
-                reportRuleViolation(rule.name, "| has no trailing space character",
-                    tok->fileName, tok->line);
+                reportRuleViolation(rule.name, tok->fileName, tok->line,
+                    "| has no trailing space character");
             }
         }
     }
@@ -463,13 +389,13 @@ static void rule_3_1_c_traverseLogicalAnd(TraversalFuncTable *table, LogicalAndE
             Token *tok = or->tok - 1;
 
             if (!checkForLeadingSpace(context, *tok)) {
-                reportRuleViolation(rule.name, "&& has no leading space character",
-                    tok->fileName, tok->line);
+                reportRuleViolation(rule.name, tok->fileName, tok->line,
+                    "&& has no leading space character");
             }
 
             if (!checkForTrailingSpace(context, *tok, strlen("&&"))) {
-                reportRuleViolation(rule.name, "&& has no trailing space character",
-                    tok->fileName, tok->line);
+                reportRuleViolation(rule.name, tok->fileName, tok->line,
+                    "&& has no trailing space character");
             }
         }
     }
@@ -495,13 +421,13 @@ static void rule_3_1_c_traverseLogicalOr(TraversalFuncTable *table, LogicalOrExp
             Token *tok = and->tok - 1;
 
             if (!checkForLeadingSpace(context, *tok)) {
-                reportRuleViolation(rule.name, "|| has no leading space character",
-                    tok->fileName, tok->line);
+                reportRuleViolation(rule.name, tok->fileName, tok->line,
+                    "|| has no leading space character");
             }
 
             if (!checkForTrailingSpace(context, *tok, strlen("||"))) {
-                reportRuleViolation(rule.name, "|| has no trailing space character",
-                    tok->fileName, tok->line);
+                reportRuleViolation(rule.name, tok->fileName, tok->line,
+                    "|| has no trailing space character");
             }
         }
     }
@@ -511,7 +437,6 @@ static void rule_3_1_c_traverseLogicalOr(TraversalFuncTable *table, LogicalOrExp
 
 // Ensures 1 space before and after +, -, *, /, %, <, <=, >, >=, ==,
 // !=, <<, >>, &, |, ^, &&, ||
-// *, /, %
 void rule_3_1_c(Rule rule, RuleContext context) {
     TraversalFuncTable funcTable = defaultTraversal();
     funcTable.traverse_LogicalOrExpr = rule_3_1_c_traverseLogicalOr;
