@@ -131,3 +131,20 @@ void rule_6_1_e(Rule rule, RuleContext context) {
 
     traverse(table, context.translationUnit, &rule);
 }
+
+static void rule_6_2_a_traverseFuncDef(TraversalFuncTable *table, FuncDef *def, void *data) {
+    Rule *rule = data;
+
+    if (def->endTok->line - def->startTok->line > 100) {
+        reportRuleViolation(rule->name, def->startTok->fileName, def->startTok->line,
+            "%s", "Procedure should not be longer than 100 lines");
+    }
+}
+
+// Procedures should not be longer than 100 lines
+void rule_6_2_a(Rule rule, RuleContext context) {
+    TraversalFuncTable table = defaultTraversal();
+    table.traverse_FuncDef = rule_6_2_a_traverseFuncDef;
+
+    traverse(table, context.translationUnit, &rule);
+}

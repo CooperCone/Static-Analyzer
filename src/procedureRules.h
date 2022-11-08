@@ -18,3 +18,6 @@ void rule_6_1_d(Rule rule, RuleContext context);
 
 // Procedures cannot have a name with uppercase letters
 void rule_6_1_e(Rule rule, RuleContext context);
+
+// Procedures should not be longer than 100 lines
+void rule_6_2_a(Rule rule, RuleContext context);

@@ -68,8 +68,7 @@ Procedure Rules
 * 6.1.c - AST
 * 6.1.d - AST
 * 6.1.e - AST
-6.1.g - AST
-6.2.a - AST -> Lexer
+* 6.2.a - AST -> Lexer
 6.2.c - AST
 6.2.e - Global function analysis
 6.2.f - AST

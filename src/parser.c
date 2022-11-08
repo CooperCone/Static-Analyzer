@@ -3459,6 +3459,8 @@ ParseRes parseCompoundStmt(TokenList *tokens, CompoundStmt *outStmt) {
 }
 
 ParseRes parseFuncDef(TokenList *tokens, FuncDef *outDef) {
+    outDef->startTok = tokens->tokens + tokens->pos;
+
     // Parse Declaration Specifiers
     DeclarationSpecifierList specifierList = {0};
     ParseRes specifierRes = parseDeclarationSpecifierList(
@@ -3499,6 +3501,8 @@ ParseRes parseFuncDef(TokenList *tokens, FuncDef *outDef) {
         return stmtRes;
 
     outDef->stmt = stmt;
+
+    outDef->endTok = tokens->tokens + tokens->pos - 1;
 
     return (ParseRes){ .success = true };
 }

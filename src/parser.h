@@ -876,6 +876,9 @@ typedef struct CompoundStmt {
 } CompoundStmt;
 
 typedef struct {
+    Token *startTok;
+    Token *endTok;
+
     DeclarationSpecifierList specifiers;
     Declarator declarator;
     SLList declarations;
