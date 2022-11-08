@@ -9,6 +9,7 @@
 #include "logger.h"
 #include "generalRules.h"
 #include "whitespaceRules.h"
+#include "dataTypeRules.h"
 
 #define TermColorRed "\033[0;31m"
 #define TermColorCyan "\033[1;36m"
@@ -77,6 +78,7 @@ size_t generateRules(Config config, Rule **outRules) {
         { "3.1.a", rule_3_1_a },
         { "3.1.b", rule_3_1_b },
         { "3.1.c", rule_3_1_c },
+        { "5.2.b", rule_5_2_b },
     };
     size_t baseRuleCount = sizeof(baseRules) / sizeof(Rule);
 
