@@ -1,0 +1,4 @@
+Known Issues
+- Whitespace calculations has a problem with the preprocessor.
+  If there's a preprocessed token next to an area where we expect
+  whitespace, then the whitespace could get stripped out.

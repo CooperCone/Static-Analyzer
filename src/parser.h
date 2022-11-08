@@ -240,6 +240,7 @@ typedef enum {
 } MultiplicativeOp;
 
 typedef struct {
+    Token *tok;
     MultiplicativeOp op;
     CastExpr expr;
 } MultiplicativePost;
@@ -256,6 +257,7 @@ typedef enum {
 } AdditiveOp;
 
 typedef struct {
+    Token *tok;
     AdditiveOp op;
     MultiplicativeExpr expr;
 } AdditivePost;
@@ -272,6 +274,7 @@ typedef enum {
 } ShiftOp;
 
 typedef struct {
+    Token *tok;
     ShiftOp op;
     AdditiveExpr expr;
 } ShiftPost;
@@ -290,6 +293,7 @@ typedef enum {
 } RelationalOp;
 
 typedef struct {
+    Token *tok;
     RelationalOp op;
     ShiftExpr expr;
 } RelationalPost;
@@ -306,6 +310,7 @@ typedef enum {
 } EqualityOp;
 
 typedef struct {
+    Token *tok;
     EqualityOp op;
     RelationalExpr expr;
 } EqualityPost;
@@ -337,6 +342,7 @@ typedef struct {
 } LogicalAndExpr;
 
 typedef struct {
+    Token *tok;
     SLList list;
 } LogicalOrExpr;
 

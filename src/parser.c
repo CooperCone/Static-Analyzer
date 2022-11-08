@@ -877,6 +877,8 @@ ParseRes parseMultiplicativeExpr(TokenList *tokens, MultiplicativeExpr *multipli
         peekTok(tokens).type == '/' ||
         peekTok(tokens).type == '%')
     {
+        Token *tok = tokens->tokens + tokens->pos;
+
         TokenType type = consumeTok(tokens).type;
         MultiplicativeOp op = type == '*' ? Multiplicative_Mul :
             type == '/' ? Multiplicative_Div :
@@ -890,6 +892,7 @@ ParseRes parseMultiplicativeExpr(TokenList *tokens, MultiplicativeExpr *multipli
         }
 
         MultiplicativePost post = {
+            .tok = tok,
             .op = op,
             .expr = cast
         };
@@ -915,6 +918,8 @@ ParseRes parseAdditiveExpr(TokenList *tokens, AdditiveExpr *additiveExpr) {
     while (peekTok(tokens).type == '+' ||
         peekTok(tokens).type == '-')
     {
+        Token *tok = tokens->tokens + tokens->pos;
+
         TokenType type = consumeTok(tokens).type;
         AdditiveOp op = type == '+' ? Additive_Add : Additive_Sub;
 
@@ -926,6 +931,7 @@ ParseRes parseAdditiveExpr(TokenList *tokens, AdditiveExpr *additiveExpr) {
         }
 
         AdditivePost post = {
+            .tok = tok,
             .op = op,
             .expr = multiplicative
         };
@@ -951,6 +957,8 @@ ParseRes parseShiftExpr(TokenList *tokens, ShiftExpr *shiftExpr) {
     while (peekTok(tokens).type == Token_ShiftLeftOp ||
         peekTok(tokens).type == Token_ShiftRightOp)
     {
+        Token *tok = tokens->tokens + tokens->pos;
+
         TokenType type = consumeTok(tokens).type;
         ShiftOp op = type == Token_ShiftLeftOp ? Shift_Left : Shift_Right;
 
@@ -962,6 +970,7 @@ ParseRes parseShiftExpr(TokenList *tokens, ShiftExpr *shiftExpr) {
         }
 
         ShiftPost post = {
+            .tok = tok,
             .op = op,
             .expr = additive
         };
@@ -989,6 +998,8 @@ ParseRes parseRelationalExpr(TokenList *tokens, RelationalExpr *relExpr) {
         peekTok(tokens).type == Token_LEqOp ||
         peekTok(tokens).type == Token_GEqOp)
     {
+        Token *tok = tokens->tokens + tokens->pos;
+
         TokenType type = consumeTok(tokens).type;
         RelationalOp op = type == '<' ? Relational_Lt :
             type == '>' ? Relational_Gt :
@@ -1003,6 +1014,7 @@ ParseRes parseRelationalExpr(TokenList *tokens, RelationalExpr *relExpr) {
         }
 
         RelationalPost post = {
+            .tok = tok,
             .op = op,
             .expr = shift
         };
@@ -1028,6 +1040,8 @@ ParseRes parseEqualityExpr(TokenList *tokens, EqualityExpr *eqExpr) {
     while (peekTok(tokens).type == Token_EqOp ||
         peekTok(tokens).type == Token_NEqOp)
     {
+        Token *tok = tokens->tokens + tokens->pos;
+
         EqualityOp op = consumeTok(tokens).type == Token_EqOp ?
             Equality_Eq : Equality_NEq;
 
@@ -1039,6 +1053,7 @@ ParseRes parseEqualityExpr(TokenList *tokens, EqualityExpr *eqExpr) {
         }
 
         EqualityPost post = {
+            .tok = tok,
             .op = op,
             .expr = rel,
         };
@@ -1130,6 +1145,8 @@ ParseRes parseLogicalAndExpr(TokenList *tokens, LogicalAndExpr *logicalAnd) {
 }
 
 ParseRes parseLogicalOrExpr(TokenList *tokens, LogicalOrExpr *logicalOr) {
+    logicalOr->tok = tokens->tokens + tokens->pos;
+
     bool foundOrOp = false;
     do {
         LogicalAndExpr andExpr = {0};
@@ -3632,7 +3649,7 @@ void printGenericSelection(GenericSelection generic, uint64_t indent) {
 void printConstantExpr(ConstantExpr expr, uint64_t indent) {
     if (expr.type == Constant_Numeric) {
         printIndent(indent);
-        printDebug("Numeic: %.*s\n", astr_format(expr.data));
+        printDebug("Numeric: %.*s\n", astr_format(expr.data));
     }
     else if (expr.type == Constant_Character) {
         printIndent(indent);

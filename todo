@@ -1,3 +1,7 @@
+- Combine binops
+- Formatted rule violations
+- Tests
+
 Version 1.0:
 - Better logging system
     - Add in printing out to files too
