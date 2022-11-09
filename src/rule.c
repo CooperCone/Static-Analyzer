@@ -11,6 +11,7 @@
 #include "whitespaceRules.h"
 #include "dataTypeRules.h"
 #include "procedureRules.h"
+#include "variableRules.h"
 
 #define TermColorRed "\033[0;31m"
 #define TermColorCyan "\033[1;36m"
@@ -86,6 +87,7 @@ size_t generateRules(Config config, Rule **outRules) {
         { "6.1.d", rule_6_1_d },
         { "6.1.e", rule_6_1_e },
         { "6.2.a", rule_6_2_a },
+        { "7.1.a", rule_7_1_a },
     };
     size_t baseRuleCount = sizeof(baseRules) / sizeof(Rule);
 
