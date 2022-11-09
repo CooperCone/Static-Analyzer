@@ -76,7 +76,8 @@ Procedure Rules
 6.4.a - Global function analysis
 
 Variable Rules
-7.1.a - AST
+* 7.1.a - AST
+7.1.b - AST
 7.1.c - AST
 7.1.d - AST
 7.1.e - AST
