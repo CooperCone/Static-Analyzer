@@ -52,12 +52,27 @@ bool peekMulti(Buffer *buffer, char *str) {
 char consume(Buffer *buffer) {
     char c = peek(buffer);
     buffer->pos++;
+
+    if (c == '\n') {
+        buffer->line++;
+        buffer->col = 0;
+    }
+    else if (c != '\0') {
+        buffer->col++;
+    }
+
     return c;
+}
+
+void consumeMulti(Buffer *buffer, size_t numBytes) {
+    for (size_t i = 0; i < numBytes; i++) {
+        consume(buffer);
+    }
 }
 
 bool consumeIf(Buffer *buffer, char c) {
     if (peek(buffer) == c) {
-        buffer->pos++;
+        consume(buffer);
         return true;
     }
 
@@ -66,7 +81,7 @@ bool consumeIf(Buffer *buffer, char c) {
 
 bool consumeMultiIf(Buffer *buffer, char *str) {
     if (peekMulti(buffer, str)) {
-        buffer->pos += strlen(str);
+        consumeMulti(buffer, strlen(str));
 
         return true;
     }
@@ -79,7 +94,11 @@ void consumeAndCopyOut(Buffer *buffer, size_t numBytes, char **outStr) {
     memcpy(str, buffer->bytes + buffer->pos, numBytes);
     str[numBytes] = '\0';
 
-    buffer->pos += numBytes;
+    consumeMulti(buffer, numBytes);
 
     *outStr = str;
+}
+
+uint8_t *buffCurr(Buffer *buffer) {
+    return buffer->bytes + buffer->pos;
 }

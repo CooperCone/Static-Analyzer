@@ -12,7 +12,7 @@ typedef enum {
     Token_ConstChar,
 
     Token_Ident,
-    Token_Whitespace = 260,
+    Token_Whitespace, // 260
     Token_NewLine,
     Token_Comment,
 
@@ -23,7 +23,7 @@ typedef enum {
     Token_SubAssign,
     Token_MulAssign,
     Token_DivAssign,
-    Token_ModAssign = 270,
+    Token_ModAssign, // 270
     Token_AndAssign,
     Token_XorAssign,
     Token_OrAssign,
@@ -33,7 +33,7 @@ typedef enum {
     Token_DecOp,
     Token_PtrOp,
     Token_LogAndOp,
-    Token_LogOrOp = 280,
+    Token_LogOrOp, // 280
     Token_LEqOp,
     Token_GEqOp,
     Token_EqOp,
@@ -44,7 +44,7 @@ typedef enum {
     Token_short,
     Token_int,
     Token_long,
-    Token_float = 290,
+    Token_float, // 290
     Token_double,
     Token_signed,
     Token_unsigned,
@@ -55,7 +55,7 @@ typedef enum {
     Token_asm,
     Token_auto,
     Token_break,
-    Token_case = 300,
+    Token_case, // 300
     Token_const,
     Token_continue,
     Token_default,
@@ -65,7 +65,7 @@ typedef enum {
     Token_extern,
     Token_for,
     Token_goto,
-    Token_if = 310,
+    Token_if, // 310
     Token_inline,
     Token_register,
     Token_restrict,
@@ -75,7 +75,7 @@ typedef enum {
     Token_struct,
     Token_switch,
     Token_typedef,
-    Token_union = 320,
+    Token_union, // 320
     Token_volatile,
     Token_while,
 
@@ -123,7 +123,5 @@ typedef struct {
     FileInfo *fileInfo;
 } LineInfo;
 
-void addLineLengthInfo(LineInfo *info, char *fileName, uint64_t line, uint64_t length);
-
-bool lexFile(Buffer buffer, TokenList *outTokens, LineInfo *outInfo);
+bool lexFile(Buffer buffer, char *fileName, TokenList *outTokens, LineInfo *outInfo);
 void printTokens(TokenList tokens);

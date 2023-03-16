@@ -125,7 +125,7 @@ Token consumeTok(TokenList *tokens) {
     return tok;
 }
 
-void consumeMulti(TokenList *tokens, size_t numToConsume) {
+void consumeMultiTok(TokenList *tokens, size_t numToConsume) {
     tokens->pos += numToConsume;
 }
 
@@ -1443,7 +1443,7 @@ ParseRes parsePostDirectAbstractDeclarator(TokenList *tokens,
     if (peekAheadTok(tokens, 0).type == '*' &&
         peekAheadTok(tokens, 1).type == ']')
     {
-        consumeMulti(tokens, 2);
+        consumeMultiTok(tokens, 2);
         postDeclarator->type = PostDirectAbstractDeclarator_Bracket;
         postDeclarator->bracketIsStar = true;
         return (ParseRes){ .success = true };

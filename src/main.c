@@ -14,6 +14,7 @@
 #include "debug.h"
 #include "config.h"
 #include "logger.h"
+#include "preprocess.h"
 
 int main(int argc, char **argv) {
 
@@ -34,15 +35,14 @@ int main(int argc, char **argv) {
         logWarn("Config: Invalid configuration file\n");
     }
 
-    Rule *rules = NULL;
-    size_t numRules = generateRules(config, &rules);
+    // Rule *rules = NULL;
+    // size_t numRules = generateRules(config, &rules);
 
     findRuleIgnorePaths(config);
 
     for (uint64_t i = 1; i < argc; i++) {
         // Open file
         Buffer fileBuff = {0};
-
         if (!openAndReadFileToBuffer(argv[i], &fileBuff)) {
             // There was an error reading the file
             char *fileError = strerror(errno);
@@ -51,38 +51,47 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        printDebug("%s\n", fileBuff.bytes);
+        printDebug("\n%s\n", fileBuff.bytes);
+
+        PreprocessTokenList preprocessTokens = {0};
+
+        if (!preprocess(fileBuff, &preprocessTokens)) {
+            logError("Main: Couldn't preprocess source file: %s\n", argv[i]);
+            continue;
+        }
+
+        printPreprocessTokens(preprocessTokens);
 
         // Lex file
-        LineInfo lineInfo = {0};
-        TokenList tokens = {0};
-        if (!lexFile(fileBuff, &tokens, &lineInfo)) {
-            continue;
-        }
+        // LineInfo lineInfo = {0};
+        // TokenList tokens = {0};
+        // if (!lexFile(fileBuff, argv[1], &tokens, &lineInfo)) {
+        //     continue;
+        // }
 
-        printTokens(tokens);
-        printDebug("\n");
+        // printTokens(tokens);
+        // printDebug("\n");
 
-        // Parse tokens
-        TranslationUnit unit = {0};
-        if (!parseTokens(&tokens, &unit)) {
-            continue;
-        }
+        // // Parse tokens
+        // TranslationUnit unit = {0};
+        // if (!parseTokens(&tokens, &unit)) {
+        //     continue;
+        // }
 
-        printTranslationUnit(unit);
-        printDebug("\n");
+        // printTranslationUnit(unit);
+        // printDebug("\n");
 
-        // Run all rules
-        RuleContext context = {
-            .fileName = argv[i],
-            .fileBuffer = fileBuff,
-            .tokens = tokens,
-            .lineInfo = lineInfo,
-            .translationUnit = unit,
-        };
+        // // Run all rules
+        // RuleContext context = {
+        //     .fileName = argv[i],
+        //     .fileBuffer = fileBuff,
+        //     .tokens = tokens,
+        //     .lineInfo = lineInfo,
+        //     .translationUnit = unit,
+        // };
 
-        for (uint64_t i = 0; i < numRules; i++) {
-            rules[i].validator(rules[i], context);
-        }
+        // for (uint64_t i = 0; i < numRules; i++) {
+        //     rules[i].validator(rules[i], context);
+        // }
     }
 }
